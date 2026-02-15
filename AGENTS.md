@@ -22,7 +22,7 @@ PostgreSQL is the canonical datastore (dev and prod). SQLite is not used.
 `docker compose up -d db`
 
 Default connection string for the compose config in `docker-compose.yml`:
-`postgres://graph:graph@localhost:5432/graph_ai_tutor`
+`postgres://graph:graph@localhost:5433/graph_ai_tutor`
 
 ### Migrations + Seed
 `packages/db` runs migrations automatically on `openDb()`.

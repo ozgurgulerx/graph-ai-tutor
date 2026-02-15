@@ -11,6 +11,13 @@
     "test": "pnpm -w exec vitest run --root apps/web"
   },
   "dependencies": {
+    "@codemirror/commands": "^6.10.2",
+    "@codemirror/lang-markdown": "^6.5.0",
+    "@codemirror/state": "^6.5.4",
+    "@codemirror/view": "^6.39.14",
+    "@graph-ai-tutor/shared": "workspace:*",
+    "@lezer/highlight": "^1.2.3",
+    "cytoscape": "^3.33.1",
     "react": "^18.3.1",
     "react-dom": "^18.3.1"
   },

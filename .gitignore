@@ -10,10 +10,12 @@ coverage/
 .pnpm-store/
 test-results/
 playwright-report/
+evals/results/
 
 # Local env
 .env
 .env.*
+!.env.example
 *.log
 
 # Local-first data

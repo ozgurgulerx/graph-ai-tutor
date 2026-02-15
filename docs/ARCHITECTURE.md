@@ -1,189 +1,138 @@
-# Graph AI Tutor (Architecture Spec)
+# Architecture Spec (v0)
 
-## Overview
-This repository will evolve into a small, testable TypeScript codebase that supports:
-- Atlas storage (graph + provenance)
-- A 3-pane Atlas UI with focus mode
-- Tutor + review loop
-- Strict model output handling (Structured Outputs for JSON)
+## Reference stack (swap if needed)
+- Frontend: React + TypeScript
+- App shell: Next.js (App Router) or Vite + Router
+- State: Zustand (or Jotai)
+- Editor: CodeMirror 6
+- Graph: Cytoscape.js (Atlas + DAG layouts)
+- Storage:
+  - Vault = filesystem Markdown
+  - Index DB = PostgreSQL (migrations) + full-text search
+  - Vector search = pgvector (or sqlite-vss / sqlite-vector if embedded)
 
-## Implementation Target (Concrete)
-App modules (UI)
-- Atlas: zoomable graph + focus mode
-- Concept Workspace: multi-level summary + mechanism steps + edges + evidence
-- Inbox: pending Changesets (PR review for your knowledge graph)
-- Tutor: grounded chat (GraphRAG-ish) + "show subgraph used"
-- Review: quizzes + spaced repetition + mastery overlay
+This design is “local-first”: DB is a derived index; vault is canonical.
 
-Backend modules
-- Graph store: nodes/edges, evidence pointers
-- Source store: URLs/PDFs/text blobs, chunking
-- Search: FTS (v1) + embeddings (v2)
-- LLM services: extraction/verification/summarization/quiz generation
-- Changesets: proposals awaiting approval (the key anti-regression mechanism)
+## High-level modules
+- core/schema: Zod schemas + types (shared)
+- core/vault: file IO, parsing, watchers
+- core/indexer: builds DB from vault (incremental)
+- core/search: FTS + vector + rank fusion
+- core/graph: traversal, neighborhoods, paths
+- core/changesets: diff model, apply, rollback hooks
+- core/llm: provider routing + structured outputs + retries
+- core/training: question gen, grading, scheduling
+- ui: panes, command palette, graph, editor, trainer
 
-Recommended stack (Codex-friendly)
-- Monorepo: pnpm + turborepo
-- Web: Vite + React + TypeScript
-- Graph viz: Cytoscape.js
-- API: Fastify + TypeScript
-- DB: Postgres (local via Docker; prod uses the same engine)
-- Schema/contracts: Zod shared between FE/BE
-- Tests: Vitest (unit), Playwright (e2e)
-- LLM API: Responses API (not Assistants)
-- Structured outputs: strict Structured Outputs with JSON Schema
+## Data model (conceptual)
+### Node
+- id (stable, UUID)
+- type (Concept|CodeArtifact|Person|Source|Route)
+- title
+- aliases[]
+- tags[]
+- file_path (for concepts/persons/sources backed by MD)
+- summary
+- created_at, updated_at
 
-## Target Package Layout (Planned)
-Monorepo (pnpm workspaces, likely turborepo) layout:
-- `apps/web`: Vite + React + TypeScript frontend (3-pane layout, focus mode, Inbox, Tutor, Review)
-- `apps/api`: Fastify + TypeScript backend (contract-first, schema-validated IO)
-- `packages/shared`: Shared Zod schemas + TypeScript types + typed API client (source of truth)
-- `packages/db`: Postgres schema, migrations, repositories
-- `packages/llm`: OpenAI Responses API wrapper + routing (nano vs mini) + Structured Outputs helpers
-- `packages/ui`: Shared UI components (optional)
+### Edge
+- id
+- from_id, to_id
+- type (prereq|implements|uses|contrasts|related|authored_by|cites|example_of)
+- weight (optional)
+- evidence[] (anchors/snippets/URLs)
+- created_at
 
-## Repo Blueprint (Planned)
-This is the expected repo shape (root is the "atlas" project):
+### CodeArtifact
+- subtype (snippet|recipe|lab)
+- language
+- code (or file_path)
+- runnable (bool) + runner config
 
-```text
-apps/
-  api/                 # Fastify server
-  web/                 # Vite React UI
-packages/
-  shared/              # Zod schemas, types, api client
-  db/                  # Postgres schema + migrations + repository layer
-  llm/                 # OpenAI Responses wrapper + prompts + router
-docs/
-  PRODUCT.md
-  UX.md
-  ARCHITECTURE.md
-  API.md
-  EVALS.md
-fixtures/
-  seed.graph.json      # golden dataset used in tests
-  seed.sources/        # small sample docs for ingestion tests
-```
+### Changeset
+- id
+- title
+- status (proposed|applied|rejected)
+- patches[] (unified diffs or structured patch objects)
+- graph_ops[] (add edge, remove edge, create node…)
+- rationale + confidence
+- created_at
 
-## Data Model (Logical)
-Core entities (names may map 1:1 to tables/collections):
-- Workspace
-- Concept (the main node type in the Atlas)
-- Edge (relationship between concepts; includes evidence pointers)
-- Source (file/url metadata, ingestion settings)
-- Chunk (document segments with offsets; used for retrieval/citations)
-- Changeset (a proposed batch of graph updates)
-- ChangesetItem (one proposed Concept/Edge create/update/delete with evidence)
-- ReviewItem (quiz/review objects; used by the SRS loop)
-- ReviewAttempt (user answer + feedback + outcome)
-- DraftRevision (proposed summary edits with diff, reversible history)
+### Training
+- TrainingItem:
+  - id, type, prompt, expected (optional), rubric (optional)
+  - concept_ids[]
+- Review:
+  - training_item_id, score, feedback, timestamp
+- Mastery:
+  - concept_id, score, last_reviewed_at, scheduling_state
 
-### Invariants in the Data Model
-- Nodes/edges that originate from sources must retain provenance to chunks/documents.
-- Persisted AI-generated changes are always user-approved proposals (audit-friendly).
+## Vault format (Markdown)
+- Frontmatter stores stable id + typed metadata.
+- Links can be:
+  - wiki links [[Concept]]
+  - explicit edges in frontmatter for stable typed edges.
 
-### Minimal Property Graph (MVP)
-This system is a property graph backed by Postgres tables.
+DB rebuild must be deterministic from vault.
 
-Node types (MVP starts with Concept; others can be added as needed):
-- Concept (default)
-- MechanismStep (optional; may be modeled as Concepts with a `kind` enum)
-- Model, Term/Alias, CodeArtifact, SourceDoc (optional)
+## Indexing pipeline
+1) Scan vault
+2) Parse frontmatter + headings + wiki links + code fences
+3) Upsert nodes
+4) Upsert edges (wiki links become `related` unless overridden)
+5) Update FTS index
+6) Compute embeddings (chunked) for semantic search
+7) Emit “index ready” event for UI
 
-Edge types (high-value set; keep enums stable):
-- PREREQUISITE_OF
-- PART_OF
-- USED_IN
-- CONTRASTS_WITH
-- ADDRESSES_FAILURE_MODE
-- INTRODUCED_BY, POPULARIZED_BY
-- CONFUSED_WITH (teaching-oriented)
+Incremental:
+- file watcher triggers reindex of only changed file + affected backlinks.
 
-Evidence model (required for trust):
-- Every stored edge must reference at least one evidence chunk id.
-- Edge evidence fields (shape; storage may be join tables instead of JSON):
-  - `evidence_chunk_ids[]`
-  - `source_url` (optional convenience; derived from chunks/sources if present)
-  - `confidence` (extractor)
-  - `verifier_score` (optional)
-  - `created_at`
+## Search architecture
+- Exact search: Postgres full-text search over:
+  - title, aliases, headings, body text, tags, code fences (separately weighted)
+- Semantic search:
+  - chunk embeddings stored with (node_id, chunk_id, text_span)
+- Hybrid:
+  - weighted fusion + type boosts + recency boosts
 
-## Ingestion + Retrieval (Planned)
-- Source ingestion:
-  - capture URL/PDF/text -> store Source + raw content
-  - chunk (~800-1200 chars with overlap) -> store Chunks with offsets + provenance
-  - index for search (Postgres FTS v1; embeddings via pgvector v2)
-- Extraction:
-  - extractor proposes Concepts/Edges with evidence chunk ids (Structured Outputs)
-  - entity resolution proposes merges/aliases (candidate-only)
-  - verifier optionally scores whether evidence supports each claim
-  - store output as a Changeset (never auto-apply)
-- Tutor query loop (GraphRAG-ish):
-  - retrieve chunks (hybrid: keyword + vector)
-  - retrieve subgraph (neighbors/k-hop/community)
-  - produce answer + citations + "used subgraph" ids (Structured Outputs)
+## LLM integration (guardrails)
+- Every LLM action has:
+  - explicit input schema
+  - explicit output schema
+  - validation + retry with “fix JSON” prompt
+- LLM cannot mutate vault directly; only returns Changeset.
 
-## API Shape (High Level)
-The API should remain boring and testable:
-- v1 endpoints (baseline):
-  - `GET /health`
-  - `GET /graph` (nodes + edges for Atlas)
-  - `GET /concept/:id`
-  - `POST /concept`
-  - `POST /edge`
-  - `GET /search?q=...` (includes chunk hits once ingestion exists)
-- Later endpoints (planned):
-  - Source ingestion upload -> chunking -> indexing
-  - Changesets: list, inspect, accept/reject items, apply accepted
-  - Tutor: grounded Q/A returning structured citations and "used subgraph" ids
-  - Review: fetch due items, grade attempts, update schedule
+Key LLM actions:
+- ProposeChangesetFromCapture
+- ProposeEdges (with evidence)
+- GenerateContextPack
+- GenerateTrainingSession
+- GradeAnswerWithRubric
 
-All cross-boundary payloads must be defined in `packages/shared` (Zod) and used by both client and server.
+## Changeset application
+- Apply:
+  - show diff preview
+  - apply patches to files
+  - reindex affected files
+- Reject:
+  - store for audit, no changes
+- Optional later:
+  - “commit to git” integration
 
-## LLM Integration
-### Structured Outputs (Hard Rule)
-If the model returns JSON used for application state, it must be:
-- Defined by an explicit JSON Schema / Zod schema
-- Requested via strict Structured Outputs
-- Validated before use; invalid outputs fail closed (no partial state updates)
+## Training engine
+- Session generator selects concepts based on:
+  - weak mastery
+  - recent edits
+  - route progression
+- Question generator uses local retrieval:
+  - concept sections + neighbors + code artifacts
+- Grader:
+  - objective checks when possible
+  - rubric-based grading when not
+- Scheduler:
+  - start with SM-2; optionally FSRS later
 
-### OpenAI Client (Responses API)
-- Centralize calls in `packages/llm` behind a small interface.
-- Provide:
-  - A Structured Outputs helper (schema in, typed result out)
-  - Mocks for unit tests
-  - One optional integration test that is skipped when no API key is set
-- Use the Responses API (not Assistants; planned shutdown Aug 26, 2026).
-
-### Model Routing: Nano vs Mini
-The system uses two default model tiers:
-- `gpt-5-nano`:
-  - tagging/classification (module labels, "is this a concept?")
-  - cheap summaries (L0/L1)
-  - deterministic-ish graders (schema conformance checks, required-key checks)
-- `gpt-5-mini`:
-  - structured extraction of nodes/edges with evidence
-  - entity resolution / merge suggestions
-  - quiz generation with explanations/rubrics
-  - tutor responses that must be coherent and grounded
-
-Routing policy is deterministic and explainable (rules + telemetry), not learned.
-
-### Hardening Against LLM Regressions
-Use layered graders:
-1. Deterministic checks first (schema validity, enums, id references, citations present).
-2. Optional LLM grader second (quality/rubric) on a small fixed fixture set.
-
-Keep fixtures in `fixtures/` and document the eval harness in `docs/EVALS.md`.
-
-## Storage
-Target storage approach:
-- Primary DB:
-  - Dev: Postgres (local via Docker)
-  - Prod: Postgres
-  - Migrations are mandatory for schema changes.
-- Search/Retrieval:
-  - Use Postgres full-text search early; add pgvector later if needed.
-- Files:
-  - Store imported files and derived artifacts outside git (e.g., `data/`), with clear `.gitignore`.
-- Fixtures:
-  - Seed graph and source fixtures live under `fixtures/` (used by tests and local dev).
+## Testing & quality gates
+- Unit tests: core graph/search/indexer
+- Integration tests: changeset apply + reindex
+- E2E: command palette, open concept, graph click, editor save, training session flow

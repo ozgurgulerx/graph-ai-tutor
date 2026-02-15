@@ -2,6 +2,7 @@ import { fileURLToPath } from "node:url";
 
 import { Pool } from "pg";
 
+import { ensureExtensionIndexes, ensureExtensions } from "./extensions";
 import { migrate } from "./migrate";
 import { createRepositories, type PgPoolLike, type Repositories } from "./repositories";
 
@@ -32,9 +33,13 @@ export async function openDb(options: OpenDbOptions = {}): Promise<Db> {
     return new Pool({ connectionString });
   })();
 
+  await ensureExtensions(pool);
+
   if (options.runMigrations ?? true) {
     await migrate(pool, options.migrationsDir ?? migrationsDir);
   }
+
+  await ensureExtensionIndexes(pool);
 
   const repos = createRepositories(pool);
 

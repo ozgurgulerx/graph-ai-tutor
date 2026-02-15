@@ -1,0 +1,43 @@
+{
+  "id": "tutor_kv_cache_v1",
+  "type": "tutor",
+  "graph": {
+    "nodes": [
+      { "id": "concept_kv_cache", "title": "KV cache", "module": "inference" },
+      { "id": "concept_self_attention", "title": "Self-attention", "module": "architectures" }
+    ],
+    "edges": [
+      {
+        "id": "edge_seed_1",
+        "fromConceptId": "concept_self_attention",
+        "toConceptId": "concept_kv_cache",
+        "type": "USED_IN"
+      }
+    ]
+  },
+  "input": {
+    "question": "What is KV cache?"
+  },
+  "output": {
+    "result": {
+      "answer_markdown": "KV cache stores per-layer key/value tensors from prior tokens so decoding can reuse them instead of recomputing attention over the full prefix.",
+      "cited_chunk_ids": ["chunk_seed_kv_1"],
+      "used_concept_ids": ["concept_kv_cache", "concept_self_attention"],
+      "used_edge_ids": ["edge_seed_1"]
+    },
+    "citations": [
+      {
+        "id": "chunk_seed_kv_1",
+        "sourceId": "source_seed_kv",
+        "content": "During autoregressive decoding, keys and values from previous tokens are cached per layer to avoid recomputing attention over the full prefix.",
+        "sourceUrl": "seed://kv-cache",
+        "sourceTitle": "KV cache notes"
+      }
+    ]
+  },
+  "expect": {
+    "minCitations": 1,
+    "requireUsedSubgraph": true
+  }
+}
+

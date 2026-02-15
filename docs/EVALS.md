@@ -34,5 +34,5 @@ Prevent "vibes-based" regressions in LLM features (extraction, quizzes, tutor) b
 
 ## Expected Commands (Once Implemented)
 - `pnpm test` runs deterministic validators on fixtures.
-- `pnpm evals` (optional) runs the LLM grader on the same fixtures and stores a summary report.
-
+- `pnpm evals` runs deterministic fixture validation (CI-friendly).
+- `pnpm evals:grade` (optional) runs the LLM grader (nano) and stores a report under `evals/results/`.

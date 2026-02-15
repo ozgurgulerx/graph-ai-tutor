@@ -1,0 +1,60 @@
+{
+  "id": "extraction_kv_cache_v1",
+  "type": "extraction",
+  "input": {
+    "sourceId": "source_seed_kv",
+    "chunks": [
+      {
+        "id": "chunk_kv_1",
+        "content": "During autoregressive decoding, keys and values from previous tokens are cached per layer to avoid recomputing attention over the full prefix.",
+        "startOffset": 0,
+        "endOffset": 142
+      },
+      {
+        "id": "chunk_attn_1",
+        "content": "Self-attention computes attention weights from similarity between queries and keys, then takes a weighted sum of values.",
+        "startOffset": 143,
+        "endOffset": 260
+      }
+    ]
+  },
+  "output": {
+    "concepts": [
+      {
+        "id": "concept_kv_cache",
+        "title": "KV cache",
+        "l0": "Cached key/value tensors during decoding to avoid recomputing attention over the full prefix.",
+        "l1": [
+          "Speeds up decoding by reusing past K/V",
+          "Memory grows with sequence length"
+        ],
+        "module": "inference",
+        "evidenceChunkIds": ["chunk_kv_1"]
+      },
+      {
+        "id": "concept_self_attention",
+        "title": "Self-attention",
+        "l0": "A mechanism that mixes information across tokens using query-key similarity and weighted sums of values.",
+        "l1": ["Uses Q/K/V projections", "Softmax-normalized attention weights"],
+        "module": "architectures",
+        "evidenceChunkIds": ["chunk_attn_1"]
+      }
+    ],
+    "edges": [
+      {
+        "fromConceptId": "concept_self_attention",
+        "toConceptId": "concept_kv_cache",
+        "type": "USED_IN",
+        "sourceUrl": "seed://kv-cache",
+        "confidence": 0.75,
+        "verifierScore": null,
+        "evidenceChunkIds": ["chunk_kv_1", "chunk_attn_1"]
+      }
+    ]
+  },
+  "expect": {
+    "minConcepts": 2,
+    "minEdges": 1
+  }
+}
+

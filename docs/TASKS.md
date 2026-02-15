@@ -1,222 +1,135 @@
-# Graph AI Tutor (Task Plan)
+# Graph-AI-Tutor — Task Queue (v0)
 
-## 0) Codex Operating Model (How We'll Drive Codex)
-Goal: ship a small IDE with hard regression gates, as a sequence of tiny vertical slices. After every task, the app runs, tests are green, and you can keep using it while it grows.
+## Working agreement (per task)
+- One task = one PR-sized change.
+- Main stays runnable (`pnpm dev`).
+- Run: `pnpm lint`, `pnpm typecheck`, `pnpm test`.
+- If UI touched: `pnpm e2e`.
+- If schema/contracts change: add a migration and update `packages/shared`.
+- AI output must be a Changeset; nothing writes to the vault without explicit user approval.
 
-Workflow that prevents regressions
-- One Codex task = one PR-sized change (<= ~10 files touched unless unavoidable).
-- Main branch is always runnable (`pnpm dev` works; seed data loads).
-- Every code task adds/adjusts tests (unit + at least one e2e smoke).
-- No schema drift: DB schema + API contracts change only with migrations + type updates.
-- LLM features are candidate-only first (nothing auto-edits your graph without approval).
-
-Worktrees/threads (optional but ideal)
-- Run backend and frontend work in separate worktrees/threads to avoid conflicts; merge sequentially through PRs.
-
-Create a "No-Regression" Codex Skill (do this once)
-- Skill: `no-regression-webapp`
-- Skill source (this repo): `codex-skills/no-regression-webapp` (copy to `~/.codex/skills/no-regression-webapp` and restart Codex to pick it up).
-- Always run: `pnpm lint`, `pnpm typecheck`, `pnpm test`, and `pnpm e2e` (when UI touched).
-- Don't change DB schema without a migration.
-- Don't change API response shapes without updating `packages/shared` schemas (and regenerating the client, if generated).
-- Don't introduce TODOs.
-- Summarize: files changed + commands run + results.
-
-Codex prompt wrapper (paste at the top of every task prompt)
+Codex prompt wrapper (paste at the top of a task)
 ```text
-Use the no-regression-webapp skill.
 Constraints:
-- Keep changes minimal and focused to the requested task.
+- Keep changes minimal and focused to this task.
 - Do not break existing behavior; update tests accordingly.
 - Run: pnpm lint, pnpm typecheck, pnpm test. If UI touched, pnpm e2e.
-- If you need to change schemas, add migrations and update shared types.
+- If you change schema/contracts, add a migration and update packages/shared.
 Deliver:
 - Summary of changes
-- Commands run + outputs
-- How to verify manually
-```
-
-Two contrarian tricks that reduce errors massively
-- Changesets everywhere (not just LLM extraction): even manual edits can be staged as a draft changeset before applying.
-- Treat your knowledge graph like code: edges have evidence, changes are reviewed, quizzes are unit tests, mastery overlay is coverage.
-
-## Operating Rules
-- One task per request (PR-sized). Keep the diff small.
-- No regressions: do not break existing behavior.
-- If changing DB schema: add migration + update shared Zod schemas/types.
-- Do not auto-commit LLM outputs: everything must go through Changesets and manual approval.
-- Use strict Structured Outputs for all LLM JSON.
-
-## Quality Gates
-- Run: pnpm lint, pnpm typecheck, pnpm test
-- If UI touched: pnpm e2e
-
-## Deliverables (In Each Response)
-- Summary of changes
-- Files changed
 - Commands run + results
 - Manual verification steps
+```
 
-## 24-Step Plan (Ordered)
+## Current baseline (what exists today)
+- Postgres schema + migrations for: concept, edge, source, chunk, changeset, changeset_item, review_item.
+- API endpoints: `GET /health`, `GET /graph`, `GET /concept/:id`, `POST /concept`, `POST /edge`, `GET /search`.
+- Web app: 3-pane shell (left search, center Atlas, right Concept Workspace), graph pan/zoom + edge-type filtering, concept L0/L1 edit.
+- Playwright smoke test exists.
 
-## Task 1 - Scaffold monorepo + tooling
-Goal: Create the workspace, scripts, lint/test/typecheck baseline.
+## Task queue (PR-sized, ordered)
 
-Acceptance gates
-- `pnpm -r test` passes (even if only a trivial test)
-- `pnpm -r lint` passes
-- `pnpm -r typecheck` passes
-- `pnpm dev` runs web + api concurrently
+## Task 1 — Command palette (Cmd+K)
+Goal: Add a command palette that can open concepts and kick off primary actions.
+Acceptance:
+- Cmd+K toggles the palette; Esc closes; Enter runs selected action.
+- Actions include: Open concept, Capture, Start training, Review changesets.
+- E2E covers “open concept from palette”.
 
-Codex prompt
-Scaffold a pnpm + turborepo monorepo with:
-- apps/web: Vite + React + TS
-- apps/api: Fastify + TS
-- packages/shared: Zod + TS types
-Add lint/typecheck/test scripts, and a root `pnpm dev` that runs web+api.
-Add one trivial Vitest test per app to verify wiring.
-Do not add TODOs. Run all scripts and report results.
+## Task 2 — Right pane “Inspector” structure
+Goal: Match the UX spec’s Inspector model (definition/invariants, neighbors, sources/evidence, mastery, actions).
+Acceptance:
+- Right pane is sectioned (even if some sections are placeholders).
+- No regressions to current Concept Workspace editing.
 
-## Task 2 - Write the "Spec Pack" docs (Codex-readable)
-Goal: Freeze product intent so Codex stops improvising.
+## Task 3 — Manual edge creation UI
+Goal: Add a keyboard-first edge editor that can link two concepts with a typed edge.
+Acceptance:
+- Create an edge from the selected concept to a searched target concept.
+- Edge appears in the Atlas without full refresh.
+- Tests cover edge creation validation.
 
-Acceptance gates
-- `docs/PRODUCT.md`, `docs/UX.md`, `docs/ARCHITECTURE.md` exist
-- Docs describe primary screens + flows + invariants
+## Task 4 — Changesets API + minimal inbox UI (DB-backed)
+Goal: Make Changesets reviewable (even before the vault + diffs exist).
+Acceptance:
+- API supports listing changesets and reading one changeset with its items.
+- UI shows an Inbox list + a detail view with accept/reject per item.
+- Apply accepted writes graph ops to DB and re-fetches graph.
 
-Codex prompt
-Create `docs/PRODUCT.md`, `docs/UX.md`, `docs/ARCHITECTURE.md` describing:
-- Screens: Atlas, Concept Workspace, Inbox, Tutor, Review
-- Data entities: Concept, Edge, Source, Chunk, Changeset, ReviewItem
-- Invariants: changesets only; no auto-commits to graph
-Keep it concise but precise. No code changes besides docs.
+## Task 5 — Capture (“I learned X…”) store + queue
+Goal: Add Capture UI and store captures (as raw inputs) for later LLM processing.
+Acceptance:
+- Capture accepts plain text and code snippet.
+- Captures are visible in a “New / Pending” queue in the left pane.
+- No LLM calls yet.
 
-## Task 3 - Postgres schema + migrations (db package)
-Goal: Implement stable storage for graph + sources + changesets.
+## Task 6 — Vault format + parser (no UI)
+Goal: Define the canonical Markdown vault format and parse it deterministically.
+Acceptance:
+- Add a `vault/` directory with a couple of sample concepts as Markdown files.
+- Parser extracts: stable id, title, tags, aliases, typed edges, headings, wiki links.
+- Unit tests cover parsing and ID stability.
 
-Acceptance gates
-- Migration runs on startup
-- Seed loads
-- Unit tests for basic CRUD
+## Task 7 — Indexer: vault → Postgres rebuild
+Goal: Treat Postgres as a rebuildable cache derived from the vault.
+Acceptance:
+- Add a “rebuild index” path that clears and rebuilds graph/search tables from `vault/`.
+- Rebuild is deterministic (same vault -> same DB state).
+- Tests cover rebuild on a tiny fixture vault.
 
-Codex prompt
-Implement `packages/db` with Postgres schema + migrations for:
-Concept, Edge, Source, Chunk, Changeset, ChangesetItem, ReviewItem.
-Include a seed loader from `fixtures/seed.graph.json`.
-Expose repository methods with TypeScript types.
-Add Vitest tests for create/read/update and referential integrity.
+## Task 8 — Concept read/write against vault (no AI)
+Goal: Make the UI read and edit the canonical Markdown (toggle read/edit).
+Acceptance:
+- Right pane can render Markdown for a concept and toggle into an editor.
+- Saving writes to the underlying vault file and triggers reindex of that concept.
+- E2E covers edit-save-reload.
 
-## Task 4 - API v1 (contract-first)
-Goal: Expose minimal endpoints using shared Zod schemas.
+## Task 9 — Universal search (exact) + “why matched”
+Goal: Implement fast exact search over vault-derived index with result cards.
+Acceptance:
+- API supports facets at least by type and tag.
+- Result cards show title, type, 1-line summary, and a match snippet/reason.
+- Search results appear quickly on the seed vault (budget tracked, not just “feels fast”).
 
-Endpoints
-- `GET /health`
-- `GET /graph` (nodes+edges for atlas)
-- `GET /concept/:id`
-- `POST /concept`
-- `POST /edge`
-- `GET /search?q=`
+## Task 10 — Changeset patches (unified diff) + apply-to-vault
+Goal: Represent vault edits as diffs and apply them only after approval.
+Acceptance:
+- ChangesetItem can store a unified diff patch targeting one vault file.
+- UI shows a diff preview; apply writes to the vault and reindexes.
+- Reject stores the decision; no vault change.
 
-Acceptance gates
-- API integration tests
-- Shared schemas compile
+## Task 11 — Training data model: review attempts + mastery
+Goal: Implement Review (result) and Mastery signals.
+Acceptance:
+- Add tables for ReviewAttempt and Mastery (migration + shared types).
+- API supports: log attempt, fetch due items, update mastery.
+- Unit tests cover scheduling state transitions (start with SM-2).
 
-Codex prompt
-Implement `apps/api` routes using Zod schemas from `packages/shared`.
-Add endpoints: `/health`, `/graph`, `/concept/:id`, `POST /concept`, `POST /edge`, `/search`.
-Use repositories from `packages/db`.
-Add API tests (supertest or fetch-based) for all routes.
+## Task 12 — Training session UI (Recall mode)
+Goal: Ship a 10–15 minute Recall session loop.
+Acceptance:
+- Start session from command palette.
+- Answer, grade, and store ReviewAttempt (objective checks where possible).
+- Wrong answers link back to the exact concept section used.
 
-## Task 5 - Web shell UI (3-pane layout)
-Goal: Layout + routing + state wiring.
+## Task 13 — CodeArtifact v1 + lab runner stub
+Goal: Add CodeArtifacts and a place to run them.
+Acceptance:
+- Concept inspector can list CodeArtifacts and open one in the center pane.
+- Lab runner can at least render + copy code; “run” can be stubbed behind a disabled button.
 
-Acceptance gates
-- App loads with seed graph
-- Basic navigation works
-- Playwright smoke test passes
+## Task 14 — LLM package (Structured Outputs only)
+Goal: Add a testable LLM client wrapper without wiring it to UX yet.
+Acceptance:
+- Central helper for schema-first structured outputs with validation/retry.
+- Mocks for unit tests; optional integration test skipped if no key.
 
-Codex prompt
-Implement `apps/web` layout:
-- Left: Search + nav
-- Center: Atlas placeholder
-- Right: Concept panel placeholder
-Wire to API `/graph` and `/concept/:id` using a typed client in `packages/shared`.
-Add Playwright e2e: loads home, sees at least one node label.
-
-## Task 6 - Atlas graph viewer (Cytoscape)
-Goal: Actual visual learning surface.
-
-Behaviors
-- zoom/pan
-- click node to open Concept panel
-- filter edges by type
-
-Acceptance gates
-- e2e: click a node opens concept title in right panel
-
-Codex prompt
-Add Cytoscape.js atlas in center pane.
-Render nodes/edges from `/graph`.
-On node click, fetch concept and show in right panel.
-Add edge-type filter UI.
-Add Playwright test: click first node -> concept title visible.
-
-## Task 7 - Concept Workspace v1 (view + edit L0/L1)
-Goal: Make concepts editable without LLM.
-
-Acceptance gates
-- edit/save round-trip
-- no graph breakage
-
-Codex prompt
-Implement Concept Workspace tab in right panel:
-- Show title, L0 one-liner, L1 bullets
-- Edit + save via API
-Add unit tests for form validation + API.
-Add e2e: edit L0, save, reload, persists.
-
-## Task 8 - Edge editor (manual graph edits)
-Goal: You can connect concepts yourself.
-
-Acceptance gates
-- adding edge updates atlas without refresh
-
-Codex prompt
-Add UI to create an Edge between two concepts:
-- Select source concept (current) and target concept (search)
-- Choose edge type enum
-POST `/edge` and update atlas state.
-Add tests for edge creation.
-
-## Task 9 - Sources v1 (manual attach + evidence stub)
-Goal: Start building "evidence-grounded" workflow before LLM exists.
-
-Acceptance gates
-- can attach a Source URL to a Concept
-- evidence record shows up in UI
-
-Codex prompt
-Implement Source entity UI:
-- Add Source (url, title optional)
-- Attach Source to Concept (Evidence pointer)
-No chunking yet.
-Add API endpoints and UI. Tests required.
-
-## Task 10 - Chunking pipeline (local docs)
-Goal: Ingest text/PDF/markdown into chunks.
-
-Acceptance gates
-- upload -> source saved -> chunks created
-- chunks searchable via FTS
-
-Codex prompt
-Add ingestion endpoint:
-- Upload text/markdown/PDF (store file + metadata)
-- Create Source record
-- Chunk into ~800-1200 char chunks with overlap
-- Store Chunk records and build Postgres FTS index
-Add `/search` that includes chunk hits.
-Add tests using `fixtures/seed.sources`.
+## Task 15 — ProposeChangesetFromCapture (LLM) + evidence/hypothesis rules
+Goal: Turn Captures into reviewable Changesets that modify graph + vault.
+Acceptance:
+- LLM output validates strictly.
+- Every proposed claim/edge includes evidence (snippet/anchor + source) or is labeled hypothesis.
+- Output is stored as a Changeset; applying it updates the vault and reindexes.
 
 ## Task 11 - LLM client wrapper (Responses API)
 Goal: Centralize all OpenAI calls + make them testable.

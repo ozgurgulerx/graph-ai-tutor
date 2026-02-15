@@ -1,69 +1,65 @@
-# Graph AI Tutor (Product Spec)
+# Graph-AI-Tutor — Product Spec (v0)
 
-## What It Is
-Graph AI Tutor is a local-first "Concept Knowledge Graph + GraphRAG tutor".
+## One-line
+A local-first, graph-backed learning workspace where Markdown is the source of truth, and LLMs propose reviewable changesets to improve your knowledge base and train deep understanding.
 
-Sources become chunked evidence. Evidence becomes an Atlas (a concept graph). The Atlas becomes an IDE-like learning workspace: a zoomable map plus a tutor that can explain, compare, generate exercises, and always show "why" via citations back to source chunks.
+## Core loop (the only loop that matters)
+1) Capture: “I learned X” (text / code / link / paper)
+2) Propose: LLM suggests **graph + source edits** as a reviewable changeset
+3) Curate: you accept/reject diffs → vault updates
+4) Recall: training mode probes understanding → updates mastery signals
+5) Build: jump from concept → code artifact → runnable lab
 
-## First Principles
-- The graph is the spine (your externalized mental model).
-- Chunks are the ground truth (what claims must cite).
-- The LLM is a builder/tutor, not the database.
+## Target user
+An expert learner/builder with a growing personal KB who wants:
+- instant recall (definition, invariants, code)
+- fast navigation (search + graph)
+- deep training (not trivia)
+- reliable edits (no silent AI writes)
 
-## Who It's For
-- Learners who want to understand a domain via connected concepts, not linear notes.
-- Builders who want a graph-first way to curate knowledge with an AI tutor, without letting the AI silently rewrite truth.
+## Non-negotiable invariants (maintainability + trust)
+### Source of truth
+- Markdown vault is canonical.
+- The database/index is a **rebuildable cache** (safe to delete/rebuild).
 
-## Core Use Cases
-- Import sources, derive an Atlas (nodes/edges + citations to chunks).
-- Explore the Atlas, focus on one concept, and ask questions grounded in selected context.
-- Turn learning into a review loop (questions, answers, feedback, spaced repetition style queues).
+### AI change control
+- AI NEVER writes directly to the vault.
+- AI output = **Changeset** (diff) you must accept to apply.
+- Every proposed edge or claim includes **evidence** (snippet/anchor + source link) OR is tagged “hypothesis”.
 
-## Primary Screens
-- Atlas (3-pane): search/nav + graph + right-side workspace panel
-- Concept Workspace: view/edit concept summaries
-- Inbox: review and apply Changesets (like PRs)
-- Tutor: grounded Q/A with citations
-- Review: spaced repetition queue and grading
+### Schema stability
+- All entities + edge types are explicitly enumerated + versioned.
+- Any schema change requires a migration + shared type update.
 
-## Key Data Entities
-- Concept, Edge
-- Source, Chunk
-- Changeset, ChangesetItem
-- ReviewItem
+### UX invariants (speed + flow)
+- Everything is keyboard-accessible.
+- Search is always one shortcut away.
+- “Open concept” is always ≤2 actions from anywhere.
+- Graph interactions are smooth and don’t block typing.
 
-## Non-Goals
-- A general-purpose note-taking app (the Atlas is primary; notes support it).
-- Autonomous content authoring (no silent "AI decided" modifications to the Atlas).
-- Real-time collaborative editing (until explicitly designed).
-- "Magic" correctness: the system must show provenance/citations rather than claiming authority.
+## Entity types (v0)
+- Concept
+- CodeArtifact (snippet/recipe/lab)
+- Person
+- Source (paper/book/blog/video)
+- Route (learning path)
+- Changeset (proposed edits)
+- TrainingItem (question/card) + Review (result)
 
-## Invariants (Hard Rules)
-- One task per request (PR-sized). Keep the diff small.
-- No regressions: do not break existing behavior.
-- Main branch is always runnable (at minimum: `pnpm dev` works; seed data loads).
-- Every code task adds/adjusts tests (unit + at least one e2e smoke). Docs-only tasks are the exception.
-- If changing DB schema: add migration + update shared Zod schemas/types.
-- Do not change API response shapes without updating `packages/shared` schemas (and the typed client, if generated).
-- Do not introduce TODOs.
-- LLM features are candidate-only first:
-  - Nothing auto-edits your graph without your approval.
-  - Ingestion/extraction outputs are stored as Changesets you can review/apply.
-- Do not auto-commit LLM outputs: everything must go through Changesets and manual approval.
-- Use strict Structured Outputs for all LLM JSON.
-- Evidence required:
-  - Graph: no edge is stored unless it references at least one evidence chunk id.
-  - Code: any behavior change or bug fix must cite evidence (failing test, reproducible steps, log snippet, UX report, or benchmark).
-- Quality gates:
-  - Run: pnpm lint, pnpm typecheck, pnpm test
-  - If UI touched: pnpm e2e
-- Deliverables (per task response):
-  - Summary of changes
-  - Files changed
-  - Commands run + results
-  - Manual verification steps
+## What “good” looks like (quality bars)
+- Global search results appear in <150ms on a medium vault.
+- Opening a concept is <200ms (from cached index).
+- Graph pan/zoom is ~60fps for typical subgraphs; degrades gracefully by clustering.
+- LLM responses are structured JSON; validation failures are recoverable (retry with guardrails).
+- No content loss: autosave, undo, git rollback.
 
-## Success Metrics (Early)
-- Users can import sources and see an Atlas with traceable citations.
-- Users can complete a "review loop" session and see measurable progress.
-- The system is predictable: actions are reviewable, and AI writes are never silently persisted.
+## Out of scope for v0 (explicitly)
+- Real-time multi-user collaboration (CRDT) — later.
+- Hosting other peoples’ vaults — later.
+- Fully automated fact-checking across the internet — later.
+- “AI writes my notes for me” — not the point.
+
+## Privacy / data ownership
+- Vault stays local by default.
+- LLM calls are opt-in per action (no background uploading).
+- Secrets are stored locally (OS keychain if desktop; env if dev).

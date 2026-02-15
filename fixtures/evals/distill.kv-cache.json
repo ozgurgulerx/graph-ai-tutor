@@ -1,0 +1,39 @@
+{
+  "id": "distill_kv_cache_v1",
+  "type": "distill",
+  "input": {
+    "concept": {
+      "id": "concept_kv_cache",
+      "title": "KV cache",
+      "l1": ["Speeds up decoding", "Stores keys and values per layer"],
+      "l2": []
+    },
+    "evidenceChunks": [
+      {
+        "id": "chunk_seed_kv_1",
+        "sourceId": "source_seed_kv",
+        "content": "During autoregressive decoding, keys and values from previous tokens are cached per layer to avoid recomputing attention over the full prefix.",
+        "sourceUrl": "seed://kv-cache",
+        "sourceTitle": "KV cache notes"
+      }
+    ]
+  },
+  "output": {
+    "l1": [
+      "Avoids recomputing attention over the full prefix during decoding",
+      "Caches per-layer keys and values from previous tokens",
+      "Grows with sequence length and consumes memory bandwidth"
+    ],
+    "l2": [
+      "During decoding, compute Q for the new token.",
+      "Reuse cached K/V for prior tokens instead of recomputing them.",
+      "Compute attention for the new token over cached K/V.",
+      "Append the new token's K/V to the cache for the next step."
+    ]
+  },
+  "expect": {
+    "minL1": 3,
+    "minL2": 4
+  }
+}
+

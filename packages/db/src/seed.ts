@@ -4,6 +4,7 @@ import type {
   ChangesetItemStatus,
   ChangesetStatus,
   EdgeType,
+  NodeKind,
   Repositories,
   ReviewItemStatus
 } from "./repositories";
@@ -12,8 +13,10 @@ export type SeedGraph = {
   concepts: Array<{
     id: string;
     title: string;
+    kind?: NodeKind;
     l0?: string | null;
     l1?: string[];
+    l2?: string[];
     module?: string | null;
   }>;
   sources: Array<{
@@ -60,6 +63,14 @@ export type SeedGraph = {
     rubric?: unknown;
     status?: ReviewItemStatus;
     dueAt?: number | null;
+    ease?: number;
+    interval?: number;
+    reps?: number;
+  }>;
+
+  conceptSources?: Array<{
+    conceptId: string;
+    sourceId: string;
   }>;
 };
 
@@ -92,6 +103,10 @@ export async function seedFromObject(target: SeedTarget, seed: SeedGraph): Promi
 
   for (const item of seed.reviewItems ?? []) {
     await target.reviewItem.create(item);
+  }
+
+  for (const link of seed.conceptSources ?? []) {
+    await target.conceptSource.attach(link.conceptId, link.sourceId);
   }
 }
 

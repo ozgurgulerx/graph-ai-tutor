@@ -8,7 +8,8 @@ services:
     ports:
       - "5433:5432"
     volumes:
-      - graph_ai_tutor_pg:/var/lib/postgresql/data
+      # Can be either a named volume (default) or a host path (e.g. ./data/postgres).
+      - ${GRAPH_AI_TUTOR_PGDATA:-graph_ai_tutor_pg}:/var/lib/postgresql/data
 
 volumes:
   graph_ai_tutor_pg:

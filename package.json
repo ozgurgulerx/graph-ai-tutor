@@ -3,8 +3,15 @@
   "private": true,
   "packageManager": "pnpm@10.28.1",
   "scripts": {
+    "db:up": "docker compose up -d db",
+    "db:down": "docker compose down",
     "dev": "turbo run dev --parallel",
+    "indexer:rebuild": "pnpm --filter @graph-ai-tutor/api indexer:rebuild",
+    "start": "node scripts/start-local.cjs",
     "e2e": "playwright test",
+    "evals": "pnpm evals:validate",
+    "evals:validate": "pnpm -w exec vitest run --root apps/api src/evals/fixtures.test.ts",
+    "evals:grade": "node --import ./apps/api/node_modules/tsx/dist/loader.mjs ./scripts/evals/grade.ts",
     "lint": "pnpm -r lint",
     "typecheck": "pnpm -r typecheck",
     "test": "pnpm -r test"
