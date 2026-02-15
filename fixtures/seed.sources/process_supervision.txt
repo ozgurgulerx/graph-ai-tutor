@@ -1,0 +1,4 @@
+Process supervision provides feedback on intermediate steps, not just final outcomes.
+
+Compared to outcome-only supervision, process supervision can reduce reward hacking by making the learning signal more granular.
+

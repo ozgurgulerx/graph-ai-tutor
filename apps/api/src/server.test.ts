@@ -1,3 +1,8 @@
+import fs from "node:fs/promises";
+import os from "node:os";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+
 import { newDb } from "pg-mem";
 import { describe, expect, it } from "vitest";
 
@@ -7,6 +12,7 @@ import {
   GetConceptResponseSchema,
   GraphResponseSchema,
   HealthResponseSchema,
+  IngestResponseSchema,
   PostConceptResponseSchema,
   PostEdgeResponseSchema,
   SearchResponseSchema
@@ -22,6 +28,11 @@ function createMemPool() {
   const mem = newDb({ autoCreateForeignKeyIndices: true });
   const { Pool } = mem.adapters.createPg();
   return new Pool();
+}
+
+function repoRootFromHere(): string {
+  const here = path.dirname(fileURLToPath(import.meta.url));
+  return path.resolve(here, "../../..");
 }
 
 async function createTestApp() {
@@ -173,13 +184,92 @@ describe("API v1", () => {
 
       const empty = await app.inject({ method: "GET", url: "/search" });
       expect(empty.statusCode).toBe(200);
-      expect(SearchResponseSchema.parse(json(empty))).toEqual({ results: [] });
+      expect(SearchResponseSchema.parse(json(empty))).toEqual({ results: [], chunkResults: [] });
 
       const res = await app.inject({ method: "GET", url: "/search?q=KV" });
       expect(res.statusCode).toBe(200);
       const parsed = SearchResponseSchema.parse(json(res));
       expect(parsed.results.map((r) => r.title)).toContain("KV cache");
+      expect(parsed.chunkResults).toEqual([]);
     } finally {
+      await app.close();
+      await db.close();
+    }
+  });
+
+  it("POST /ingest creates a source + chunks (markdown) and chunks are searchable", async () => {
+    const { app, db } = await createTestApp();
+    const dataDir = await fs.mkdtemp(path.join(os.tmpdir(), "graph-ai-tutor-data-"));
+    process.env.DATA_DIR = dataDir;
+
+    try {
+      const mdPath = path.join(repoRootFromHere(), "fixtures", "seed.sources", "kv_cache.md");
+      const md = await fs.readFile(mdPath, "utf8");
+
+      const ingestRes = await app.inject({
+        method: "POST",
+        url: "/ingest",
+        headers: { "content-type": "application/json" },
+        payload: JSON.stringify({
+          filename: "kv_cache.md",
+          contentType: "text/markdown",
+          text: md,
+          title: "KV cache"
+        })
+      });
+      expect(ingestRes.statusCode).toBe(200);
+
+      const ingested = IngestResponseSchema.parse(json(ingestRes));
+      expect(ingested.sourceId).toMatch(/^source_/);
+      expect(ingested.chunkCount).toBeGreaterThan(0);
+
+      const searchRes = await app.inject({ method: "GET", url: "/search?q=KV%20cache" });
+      expect(searchRes.statusCode).toBe(200);
+      const search = SearchResponseSchema.parse(json(searchRes));
+      expect(search.chunkResults.length).toBeGreaterThan(0);
+      expect(search.chunkResults[0]?.snippet.toLowerCase()).toContain("kv cache");
+    } finally {
+      delete process.env.DATA_DIR;
+      await fs.rm(dataDir, { recursive: true, force: true });
+      await app.close();
+      await db.close();
+    }
+  });
+
+  it("POST /ingest accepts PDFs (base64) and chunks are searchable", async () => {
+    const { app, db } = await createTestApp();
+    const dataDir = await fs.mkdtemp(path.join(os.tmpdir(), "graph-ai-tutor-data-"));
+    process.env.DATA_DIR = dataDir;
+
+    try {
+      const pdfBytes = Buffer.from(
+        "%PDF-1.1\n1 0 obj\n<<>>\nendobj\nstream\nBT\n(Hello KV cache from PDF) Tj\nET\nendstream\n%%EOF\n",
+        "utf8"
+      );
+
+      const ingestRes = await app.inject({
+        method: "POST",
+        url: "/ingest",
+        headers: { "content-type": "application/json" },
+        payload: JSON.stringify({
+          filename: "hello.pdf",
+          contentType: "application/pdf",
+          base64: pdfBytes.toString("base64"),
+          title: "Hello PDF"
+        })
+      });
+      expect(ingestRes.statusCode).toBe(200);
+      const ingested = IngestResponseSchema.parse(json(ingestRes));
+      expect(ingested.chunkCount).toBeGreaterThan(0);
+
+      const searchRes = await app.inject({ method: "GET", url: "/search?q=KV%20cache" });
+      expect(searchRes.statusCode).toBe(200);
+      const search = SearchResponseSchema.parse(json(searchRes));
+      expect(search.chunkResults.length).toBeGreaterThan(0);
+      expect(search.chunkResults[0]?.snippet.toLowerCase()).toContain("kv cache");
+    } finally {
+      delete process.env.DATA_DIR;
+      await fs.rm(dataDir, { recursive: true, force: true });
       await app.close();
       await db.close();
     }

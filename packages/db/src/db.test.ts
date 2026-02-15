@@ -94,6 +94,24 @@ describe("@graph-ai-tutor/db (postgres)", () => {
     }
   });
 
+  it("indexes chunks for search (FTS v1)", async () => {
+    const pool = createMemPool();
+    const db = await openDb({ pool });
+    try {
+      const source = await db.source.create({ url: "seed://test/source" });
+      await db.chunk.create({
+        sourceId: source.id,
+        content: "KV cache stores keys and values during decoding."
+      });
+
+      const hits = await db.chunk.search("kv cache decoding", 10);
+      expect(hits.length).toBeGreaterThan(0);
+      expect(hits[0]?.snippet.toLowerCase()).toContain("kv cache");
+    } finally {
+      await db.close();
+    }
+  });
+
   it("supports changesets, changeset items, and review items with referential integrity", async () => {
     const pool = createMemPool();
     const db = await openDb({ pool });
@@ -184,4 +202,3 @@ describe("@graph-ai-tutor/db (postgres)", () => {
     }
   });
 });
-

@@ -102,6 +102,14 @@ export type ChunkCreate = {
   endOffset?: number;
 };
 
+export type ChunkSearchHit = {
+  chunkId: string;
+  sourceId: string;
+  sourceUrl: string;
+  sourceTitle: string | null;
+  snippet: string;
+};
+
 export type ChangesetStatus = "draft" | "applied";
 
 export type Changeset = {
@@ -210,6 +218,23 @@ function toNullableNumber(value: unknown): number | null {
 function toStringArray(value: unknown): string[] {
   if (Array.isArray(value) && value.every((x) => typeof x === "string")) return value;
   return [];
+}
+
+function tokenizeForFts(input: string): string[] {
+  const tokens = input
+    .toLowerCase()
+    .replaceAll(/[^a-z0-9]+/g, " ")
+    .split(" ")
+    .map((t) => t.trim())
+    .filter((t) => t.length >= 2);
+
+  return Array.from(new Set(tokens)).slice(0, 200);
+}
+
+function makeSnippet(content: string, maxLen = 240): string {
+  const normalized = content.replaceAll(/\s+/g, " ").trim();
+  if (normalized.length <= maxLen) return normalized;
+  return `${normalized.slice(0, maxLen - 3)}...`;
 }
 
 export function createRepositories(pool: PgPoolLike) {
@@ -507,29 +532,49 @@ export function createRepositories(pool: PgPoolLike) {
         const startOffset = input.startOffset ?? 0;
         const endOffset = input.endOffset ?? input.content.length;
 
-        const res = await pool.query<{
-          id: string;
-          source_id: string;
-          content: string;
-          start_offset: number;
-          end_offset: number;
-          created_at: unknown;
-        }>(
-          `INSERT INTO chunk (id, source_id, content, start_offset, end_offset, created_at)
-           VALUES ($1, $2, $3, $4, $5, $6)
-           RETURNING id, source_id, content, start_offset, end_offset, created_at`,
-          [id, input.sourceId, input.content, startOffset, endOffset, now]
-        );
-        const row = res.rows[0];
-        if (!row) throw new Error("Failed to create chunk");
-        return {
-          id: row.id,
-          sourceId: row.source_id,
-          content: row.content,
-          startOffset: row.start_offset,
-          endOffset: row.end_offset,
-          createdAt: toNumber(row.created_at)
-        };
+        const client = await pool.connect();
+        try {
+          await client.query("BEGIN");
+
+          const res = await client.query<{
+            id: string;
+            source_id: string;
+            content: string;
+            start_offset: number;
+            end_offset: number;
+            created_at: unknown;
+          }>(
+            `INSERT INTO chunk (id, source_id, content, start_offset, end_offset, created_at)
+             VALUES ($1, $2, $3, $4, $5, $6)
+             RETURNING id, source_id, content, start_offset, end_offset, created_at`,
+            [id, input.sourceId, input.content, startOffset, endOffset, now]
+          );
+
+          for (const term of tokenizeForFts(input.content)) {
+            await client.query("INSERT INTO chunk_fts (chunk_id, term) VALUES ($1, $2)", [
+              id,
+              term
+            ]);
+          }
+
+          await client.query("COMMIT");
+
+          const row = res.rows[0];
+          if (!row) throw new Error("Failed to create chunk");
+          return {
+            id: row.id,
+            sourceId: row.source_id,
+            content: row.content,
+            startOffset: row.start_offset,
+            endOffset: row.end_offset,
+            createdAt: toNumber(row.created_at)
+          };
+        } catch (err) {
+          await client.query("ROLLBACK");
+          throw err;
+        } finally {
+          client.release();
+        }
       },
 
       async getById(id: string): Promise<Chunk | null> {
@@ -561,6 +606,48 @@ export function createRepositories(pool: PgPoolLike) {
       async count(): Promise<number> {
         const res = await pool.query<{ n: unknown }>("SELECT COUNT(1) AS n FROM chunk");
         return toNumber(res.rows[0]?.n);
+      },
+
+      async search(q: string, limit: number): Promise<ChunkSearchHit[]> {
+        const terms = tokenizeForFts(q);
+        if (terms.length === 0) return [];
+
+        // Avoid Postgres array operators here; pg-mem has incomplete array support.
+        const placeholders = terms.map((_, i) => `$${i + 1}`).join(", ");
+        const limitParam = `$${terms.length + 1}`;
+
+        const res = await pool.query<{
+          chunk_id: string;
+          source_id: string;
+          content: string;
+          source_url: string;
+          source_title: string | null;
+          matches: unknown;
+        }>(
+          `SELECT
+             c.id AS chunk_id,
+             c.source_id AS source_id,
+             c.content AS content,
+             s.url AS source_url,
+             s.title AS source_title,
+             COUNT(1) AS matches
+           FROM chunk_fts f
+           JOIN chunk c ON c.id = f.chunk_id
+           JOIN source s ON s.id = c.source_id
+           WHERE f.term IN (${placeholders})
+           GROUP BY c.id, c.source_id, c.content, s.url, s.title
+           ORDER BY COUNT(1) DESC
+           LIMIT ${limitParam}`,
+          [...terms, limit]
+        );
+
+        return res.rows.map((r) => ({
+          chunkId: r.chunk_id,
+          sourceId: r.source_id,
+          sourceUrl: r.source_url,
+          sourceTitle: r.source_title,
+          snippet: makeSnippet(r.content)
+        }));
       }
     },
 

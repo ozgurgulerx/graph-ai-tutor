@@ -153,7 +153,39 @@ export const SearchQuerySchema = z
 export type SearchQuery = z.infer<typeof SearchQuerySchema>;
 
 export const SearchResponseSchema = z.object({
-  results: z.array(ConceptSummarySchema)
+  results: z.array(ConceptSummarySchema),
+  chunkResults: z.array(
+    z.object({
+      chunkId: z.string(),
+      sourceId: z.string(),
+      sourceUrl: z.string(),
+      sourceTitle: z.string().nullable(),
+      snippet: z.string()
+    })
+  )
 });
 
 export type SearchResponse = z.infer<typeof SearchResponseSchema>;
+
+export const IngestRequestSchema = z
+  .object({
+    filename: z.string().min(1),
+    contentType: z.string().min(1),
+    text: z.string().optional(),
+    base64: z.string().optional(),
+    url: z.string().optional(),
+    title: z.string().optional()
+  })
+  .strict()
+  .refine((val) => (typeof val.text === "string") !== (typeof val.base64 === "string"), {
+    message: "Provide exactly one of text or base64"
+  });
+
+export type IngestRequest = z.infer<typeof IngestRequestSchema>;
+
+export const IngestResponseSchema = z.object({
+  sourceId: z.string(),
+  chunkCount: z.number()
+});
+
+export type IngestResponse = z.infer<typeof IngestResponseSchema>;

@@ -33,5 +33,9 @@ export {
   SearchQuerySchema,
   type SearchQuery,
   SearchResponseSchema,
-  type SearchResponse
+  type SearchResponse,
+  IngestRequestSchema,
+  type IngestRequest,
+  IngestResponseSchema,
+  type IngestResponse
 } from "./schemas/api-v1";
