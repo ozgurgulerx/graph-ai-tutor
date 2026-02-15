@@ -29,8 +29,11 @@ All non-2xx responses should use a consistent JSON shape:
   - Creates or updates a concept (explicit API; no LLM required).
 - `POST /edge`
   - Creates an edge (manual graph editing).
+- `POST /ingest`
+  - Uploads a local document (text/markdown via `text`, PDFs via `base64`), stores raw bytes + metadata, chunks it, and indexes chunks for search.
 - `GET /search?q=...`
-  - v1: concept search (and chunk hits once ingestion exists).
+  - v1: concept + chunk search.
+  - Response shape: `{ results: ConceptSummary[], chunkResults: ChunkSearchHit[] }`.
 
 ## Planned Modules (Later)
 - Sources:
@@ -41,4 +44,3 @@ All non-2xx responses should use a consistent JSON shape:
   - grounded Q/A returning citations + used subgraph ids (Structured Outputs on the LLM side)
 - Review:
   - fetch due items, submit attempts, grade, update schedule
-
