@@ -64,7 +64,7 @@ function getErrorMessage(payload: unknown): string | undefined {
 type AzureConfig = {
   endpoint: string;
   apiVersion: string;
-  getToken: () => Promise<string>;
+  getAuthHeaders: () => Promise<Record<string, string>>;
 };
 
 /**
@@ -144,11 +144,11 @@ function createAzureChatCompletionsClient(
         `${endpoint}/openai/deployments/${deployment}/chat/completions` +
         `?api-version=${azure.apiVersion}`;
 
-      const token = await azure.getToken();
+      const authHeaders = await azure.getAuthHeaders();
       const res = await fetchFn(url, {
         method: "POST",
         headers: {
-          Authorization: `Bearer ${token}`,
+          ...authHeaders,
           "Content-Type": "application/json"
         },
         body: JSON.stringify(toAzureChatBody(req)),
@@ -234,21 +234,29 @@ export function createOpenAIResponsesClient(
     };
   }
 
-  // Azure OpenAI fallback — uses Entra ID (DefaultAzureCredential)
+  // Azure OpenAI fallback — API key or Entra ID (DefaultAzureCredential)
   const azureEndpoint = env.AZURE_OPENAI_ENDPOINT;
 
   if (azureEndpoint) {
-    const credential = new DefaultAzureCredential();
-    const getToken = getBearerTokenProvider(
-      credential,
-      "https://cognitiveservices.azure.com/.default"
-    );
+    const azureApiKey = env.AZURE_OPENAI_API_KEY;
+
+    let getAuthHeaders: () => Promise<Record<string, string>>;
+    if (azureApiKey) {
+      getAuthHeaders = async () => ({ "api-key": azureApiKey });
+    } else {
+      const credential = new DefaultAzureCredential();
+      const getToken = getBearerTokenProvider(
+        credential,
+        "https://cognitiveservices.azure.com/.default"
+      );
+      getAuthHeaders = async () => ({ Authorization: `Bearer ${await getToken()}` });
+    }
 
     return createAzureChatCompletionsClient(
       {
         endpoint: azureEndpoint,
         apiVersion: env.AZURE_OPENAI_API_VERSION || DEFAULT_AZURE_API_VERSION,
-        getToken
+        getAuthHeaders
       },
       fetchFn
     );
@@ -256,6 +264,6 @@ export function createOpenAIResponsesClient(
 
   throw new Error(
     "No LLM credentials found. Set OPENAI_API_KEY for OpenAI, " +
-    "or AZURE_OPENAI_ENDPOINT for Azure OpenAI (uses Entra ID auth)."
+    "or AZURE_OPENAI_ENDPOINT + AZURE_OPENAI_API_KEY for Azure OpenAI."
   );
 }
