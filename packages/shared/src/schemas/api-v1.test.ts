@@ -202,6 +202,9 @@ describe("api-v1 schemas", () => {
       updatedAt: Date.now()
     });
     expect(q.type).toBe("MECHANISM_TRACE");
+    if (!("keyPoints" in q.answer)) {
+      throw new Error("Expected keyPoints in MECHANISM_TRACE answer");
+    }
     expect(q.answer.keyPoints).toContain("compute gradients");
   });
 

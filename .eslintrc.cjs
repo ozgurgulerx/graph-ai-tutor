@@ -4,6 +4,10 @@ module.exports = {
   parser: "@typescript-eslint/parser",
   plugins: ["@typescript-eslint"],
   extends: ["eslint:recommended", "plugin:@typescript-eslint/recommended"],
+  rules: {
+    // TypeScript + editor formatting sometimes introduces mixed indentation in TSX; keep lint focused on correctness.
+    "no-mixed-spaces-and-tabs": "off"
+  },
   overrides: [
     {
       files: ["**/*.tsx"],
@@ -16,7 +20,9 @@ module.exports = {
         react: { version: "detect" },
       },
       rules: {
-        "react/react-in-jsx-scope": "off"
+        "react/react-in-jsx-scope": "off",
+        // TS types are sufficient for props validation.
+        "react/prop-types": "off"
       }
     },
     {
@@ -27,4 +33,3 @@ module.exports = {
     }
   ]
 };
-

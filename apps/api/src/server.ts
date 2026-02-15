@@ -4,7 +4,7 @@ import Fastify from "fastify";
 import type { FastifyInstance, FastifyReply } from "fastify";
 import { z } from "zod";
 
-import type { Db, Repositories } from "@graph-ai-tutor/db";
+import type { ApplyAcceptedOptions, Db, Repositories } from "@graph-ai-tutor/db";
 import {
   ChangesetItemParamsSchema,
   GetChangesetParamsSchema,
@@ -1439,9 +1439,7 @@ function registerApiRoutes(
     );
 
     let rollbackFilePatches: (() => Promise<void>) | null = null;
-    let filePatchOptions:
-      | { appliedFilePatchItemIds: string[]; vaultFileUpdates: Array<{ path: string; content: string; contentHash: string }> }
-      | undefined;
+    let filePatchOptions: ApplyAcceptedOptions = {};
 
     try {
       if (acceptedFilePatches.length > 0) {
@@ -1467,7 +1465,7 @@ function registerApiRoutes(
         };
       }
 
-      const res = await deps.repos.changeset.applyAccepted(params.id, filePatchOptions ?? {});
+      const res = await deps.repos.changeset.applyAccepted(params.id, filePatchOptions);
       const validated = parseOr400(reply, PostApplyChangesetResponseSchema, {
         changeset: res.changeset,
         applied: {
