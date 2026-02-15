@@ -1,0 +1,17 @@
+{
+  "name": "@graph-ai-tutor/api",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "lint": "pnpm -w exec eslint apps/api --max-warnings 0",
+    "typecheck": "pnpm -w exec tsc -p apps/api/tsconfig.json --noEmit",
+    "test": "pnpm -w exec vitest run --root apps/api"
+  },
+  "dependencies": {
+    "fastify": "^4.28.1"
+  },
+  "devDependencies": {
+    "tsx": "^4.7.2"
+  }
+}
