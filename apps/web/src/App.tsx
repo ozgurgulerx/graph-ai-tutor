@@ -33,8 +33,8 @@ import { SourcePanel } from "./SourcePanel";
 import { TutorPanel } from "./TutorPanel";
 import { CommandPalette } from "./CommandPalette";
 import { TrainingPanel } from "./TrainingPanel";
-import { HighlightedText } from "./search/HighlightedText";
 import { collectWithinHops } from "./search/neighborhood";
+import { HighlightedText } from "./search/HighlightedText";
 
 type AtlasViewProps = {
   graph: GraphResponse | null;
@@ -267,7 +267,8 @@ function AtlasView({
   focusModeEnabled,
   focusDepth,
   onSelectConcept,
-  onSelectEdge
+  onSelectEdge,
+  onCyReady
 }: AtlasViewProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const cyRef = useRef<cytoscape.Core | null>(null);
@@ -413,7 +414,7 @@ function AtlasView({
             "border-width": 1,
             "border-color": "#cbd5e1",
             shape: "roundrectangle",
-            "padding-top": "12px" as unknown as number,
+            padding: "12px",
             label: "data(label)",
             "font-size": "13px",
             "text-valign": "top",
@@ -438,6 +439,7 @@ function AtlasView({
     cy.on("tap", "node", onTapNode);
     cy.on("tap", "edge", onTapEdge);
     cyRef.current = cy;
+    onCyReady?.(cy);
 
     if (import.meta.env.DEV) window.__CY__ = cy;
 
@@ -447,6 +449,7 @@ function AtlasView({
       cy.removeListener("tap", "edge", onTapEdge);
       cy.destroy();
       cyRef.current = null;
+      onCyReady?.(null);
     };
   }, []);
 
@@ -553,6 +556,9 @@ function ConceptListItem(props: {
 }
 
 export default function App() {
+  const atlasCyRef = useRef<cytoscape.Core | null>(null);
+  const focusTimerRef = useRef<number | null>(null);
+
   const [graph, setGraph] = useState<GraphResponse | null>(null);
   const [graphError, setGraphError] = useState<string | null>(null);
   const [graphMode, setGraphMode] = useState<"full" | "clustered">("full");
@@ -560,18 +566,12 @@ export default function App() {
 
   const [query, setQuery] = useState("");
   const [universalSearch, setUniversalSearch] = useState<SearchUniversalResponse | null>(null);
-  const [universalSearchLoading, setUniversalSearchLoading] = useState(false);
   const [universalSearchError, setUniversalSearchError] = useState<string | null>(null);
-
-  const [searchScopeOverride, setSearchScopeOverride] = useState<"neighborhood" | "global" | null>(
-    null
+  const [universalSearchLoading, setUniversalSearchLoading] = useState(false);
+  const [searchScopeOverride, setSearchScopeOverride] = useState<"neighborhood" | "global" | null>(null);
+  const [searchFacetAllowlist, setSearchFacetAllowlist] = useState<Set<"concepts" | "sources" | "evidence">>(
+    () => new Set(["concepts", "sources", "evidence"])
   );
-  const [searchFacetAllowlist, setSearchFacetAllowlist] = useState<
-    Set<"concepts" | "sources" | "evidence">
-  >(() => new Set(["concepts", "sources", "evidence"]));
-
-  const atlasCyRef = useRef<cytoscape.Core | null>(null);
-  const focusTimerRef = useRef<number | null>(null);
 
   const [selectedEdgeTypes, setSelectedEdgeTypes] = useState<Set<EdgeType>>(
     () => new Set(EdgeTypeSchema.options)
@@ -645,6 +645,28 @@ export default function App() {
     a.click();
     URL.revokeObjectURL(url);
   }
+
+  const handleCyReady = useCallback((cy: cytoscape.Core | null) => {
+    atlasCyRef.current = cy;
+  }, []);
+
+  const focusConceptInGraph = useCallback((conceptId: string) => {
+    const cy = atlasCyRef.current;
+    if (!cy) return;
+
+    cy.nodes().removeClass("searchFocused");
+    const node = cy.$id(conceptId);
+    if (node.empty()) return;
+
+    node.addClass("searchFocused");
+    cy.animate({ fit: { eles: node, padding: 80 }, duration: 350 });
+
+    if (focusTimerRef.current !== null) window.clearTimeout(focusTimerRef.current);
+    focusTimerRef.current = window.setTimeout(() => {
+      node.removeClass("searchFocused");
+      focusTimerRef.current = null;
+    }, 1400);
+  }, []);
 
   // Cmd+K command palette shortcut
   useEffect(() => {
@@ -751,6 +773,86 @@ export default function App() {
     if (!q) return nodes;
     return nodes.filter((n) => n.title.toLowerCase().includes(q));
   }, [graph, query]);
+
+  useEffect(() => {
+    const q = query.trim();
+    if (q.length < 2) {
+      setUniversalSearch(null);
+      setUniversalSearchError(null);
+      setUniversalSearchLoading(false);
+      return;
+    }
+
+    let cancelled = false;
+    setUniversalSearchLoading(true);
+    setUniversalSearchError(null);
+
+    const timer = window.setTimeout(() => {
+      getUniversalSearch(q, 20)
+        .then((res) => {
+          if (cancelled) return;
+          setUniversalSearch(res);
+        })
+        .catch((err: unknown) => {
+          if (cancelled) return;
+          setUniversalSearch(null);
+          setUniversalSearchError(err instanceof Error ? err.message : "Search failed");
+        })
+        .finally(() => {
+          if (cancelled) return;
+          setUniversalSearchLoading(false);
+        });
+    }, 250);
+
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timer);
+    };
+  }, [query]);
+
+  useEffect(() => {
+    if (!selectedConceptId) setSearchScopeOverride(null);
+  }, [selectedConceptId]);
+
+  const effectiveSearchScope: "neighborhood" | "global" = selectedConceptId
+    ? (searchScopeOverride ?? "neighborhood")
+    : "global";
+
+  const neighborhoodConceptIds = useMemo(() => {
+    if (!graph || !selectedConceptId) return null;
+    return collectWithinHops(graph.edges, selectedConceptId, 2);
+  }, [graph, selectedConceptId]);
+
+  const scopedUniversalSearch = useMemo(() => {
+    if (!universalSearch) return null;
+    if (effectiveSearchScope !== "neighborhood" || !neighborhoodConceptIds) return universalSearch;
+
+    const within = (conceptIds: string[]) => conceptIds.some((id) => neighborhoodConceptIds.has(id));
+
+    return {
+      concepts: universalSearch.concepts.filter((c) => neighborhoodConceptIds.has(c.id)),
+      sources: universalSearch.sources.filter((s) => within(s.conceptIds)),
+      evidence: universalSearch.evidence.filter((e) => within(e.conceptIds))
+    };
+  }, [effectiveSearchScope, neighborhoodConceptIds, universalSearch]);
+
+  const facetCounts = useMemo(() => {
+    const data = scopedUniversalSearch ?? { concepts: [], sources: [], evidence: [] };
+    return {
+      concepts: data.concepts.length,
+      sources: data.sources.length,
+      evidence: data.evidence.length
+    };
+  }, [scopedUniversalSearch]);
+
+  function toggleSearchFacet(facet: "concepts" | "sources" | "evidence") {
+    setSearchFacetAllowlist((prev) => {
+      const next = new Set(prev);
+      if (next.has(facet)) next.delete(facet);
+      else next.add(facet);
+      return next;
+    });
+  }
 
   function selectConcept(id: string) {
     const params = new URLSearchParams(window.location.search);
@@ -864,39 +966,252 @@ export default function App() {
             </div>
           </div>
 
-          <div className="section">
-            <label className="sectionTitle" htmlFor="search">
-              Search
-            </label>
-            <input
-              id="search"
-              className="searchInput"
-              placeholder="Search concepts..."
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-            />
+	          <div className="section">
+	            <label className="sectionTitle" htmlFor="search">
+	              Search
+	            </label>
+	            <input
+	              id="search"
+	              className="searchInput"
+	              placeholder="Search concepts..."
+	              value={query}
+	              onChange={(e) => setQuery(e.target.value)}
+	            />
 
-            {graphError ? (
-              <p role="alert" className="errorText">
-                {graphError}
-              </p>
-            ) : null}
+	            {graphError ? (
+	              <p role="alert" className="errorText">
+	                {graphError}
+	              </p>
+	            ) : null}
 
-            {!graph ? (
-              <SkeletonBlock lines={6} />
-            ) : (
-              <ul className="nodeList" aria-label="Concepts">
-                {filteredNodes.map((n) => (
-                  <ConceptListItem
-                    key={n.id}
-                    node={n}
-                    selected={selectedConceptId === n.id}
-                    onSelect={selectConcept}
-                  />
-                ))}
-              </ul>
-            )}
-          </div>
+	            {query.trim().length >= 2 ? (
+	              <>
+	                {selectedConceptId ? (
+	                  <div className="searchControls">
+	                    <label className="mutedText" htmlFor="search-scope">
+	                      Scope
+	                    </label>
+	                    <select
+	                      id="search-scope"
+	                      className="searchInput"
+	                      value={effectiveSearchScope}
+	                      onChange={(e) =>
+	                        setSearchScopeOverride(e.target.value as "neighborhood" | "global")
+	                      }
+	                    >
+	                      <option value="neighborhood">Neighborhood (2 hops)</option>
+	                      <option value="global">Global</option>
+	                    </select>
+	                  </div>
+	                ) : (
+	                  <p className="mutedText">Scope: Global</p>
+	                )}
+
+	                <div className="searchFacets" role="group" aria-label="Result types">
+	                  <button
+	                    type="button"
+	                    className={`facetButton ${
+	                      searchFacetAllowlist.has("concepts") ? "facetButtonActive" : ""
+	                    }`}
+	                    onClick={() => toggleSearchFacet("concepts")}
+	                  >
+	                    Concepts ({facetCounts.concepts})
+	                  </button>
+	                  <button
+	                    type="button"
+	                    className={`facetButton ${
+	                      searchFacetAllowlist.has("sources") ? "facetButtonActive" : ""
+	                    }`}
+	                    onClick={() => toggleSearchFacet("sources")}
+	                  >
+	                    Sources ({facetCounts.sources})
+	                  </button>
+	                  <button
+	                    type="button"
+	                    className={`facetButton ${
+	                      searchFacetAllowlist.has("evidence") ? "facetButtonActive" : ""
+	                    }`}
+	                    onClick={() => toggleSearchFacet("evidence")}
+	                  >
+	                    Evidence ({facetCounts.evidence})
+	                  </button>
+	                </div>
+
+	                {universalSearchError ? (
+	                  <p role="alert" className="errorText">
+	                    {universalSearchError}
+	                  </p>
+	                ) : null}
+
+	                {universalSearchLoading ? <p className="mutedText">Searching...</p> : null}
+
+	                {!universalSearchLoading && scopedUniversalSearch ? (
+	                  facetCounts.concepts + facetCounts.sources + facetCounts.evidence === 0 ? (
+	                    <p className="mutedText">(No results)</p>
+	                  ) : (
+	                    <div className="searchResults" aria-label="Search results">
+	                      {searchFacetAllowlist.has("concepts") ? (
+	                        <div className="searchGroup">
+	                          <div className="searchGroupTitle">Concepts</div>
+	                          <ul className="searchResultList" aria-label="Concept results">
+	                            {scopedUniversalSearch.concepts.map((r) => (
+	                              <li key={r.id} className="searchResult">
+	                                <div className="searchResultTop">
+	                                  <div className="searchResultTitle">
+	                                    <HighlightedText
+	                                      value={r.titleHighlight}
+	                                      fallback={r.title}
+	                                    />
+	                                  </div>
+	                                  <button
+	                                    type="button"
+	                                    className="ghostButton"
+	                                    onClick={() => {
+	                                      selectConcept(r.id);
+	                                      focusConceptInGraph(r.id);
+	                                    }}
+	                                    data-testid={`search-show-${r.id}`}
+	                                  >
+	                                    Show in graph
+	                                  </button>
+	                                </div>
+	                                <div className="mutedText">
+	                                  {r.kind}
+	                                  {r.module ? ` • ${r.module}` : ""}
+	                                </div>
+	                                {r.snippetHighlight ? (
+	                                  <div className="searchWhy">
+	                                    <span className="mutedText">Why matched: </span>
+	                                    <HighlightedText value={r.snippetHighlight} />
+	                                  </div>
+	                                ) : null}
+	                              </li>
+	                            ))}
+	                          </ul>
+	                        </div>
+	                      ) : null}
+
+	                      {searchFacetAllowlist.has("sources") ? (
+	                        <div className="searchGroup">
+	                          <div className="searchGroupTitle">Sources</div>
+	                          <ul className="searchResultList" aria-label="Source results">
+	                            {scopedUniversalSearch.sources.map((s) => {
+	                              const targetConceptId = s.conceptIds[0] ?? null;
+	                              const titleFallback = s.source.title ?? s.source.url;
+	                              return (
+	                                <li key={s.source.id} className="searchResult">
+	                                  <div className="searchResultTop">
+	                                    <div className="searchResultTitle">
+	                                      <HighlightedText
+	                                        value={s.titleHighlight}
+	                                        fallback={titleFallback}
+	                                      />
+	                                    </div>
+	                                    <div className="searchResultActions">
+	                                      <button
+	                                        type="button"
+	                                        className="ghostButton"
+	                                        onClick={() => openSource(s.source.id)}
+	                                      >
+	                                        Open
+	                                      </button>
+	                                      <button
+	                                        type="button"
+	                                        className="ghostButton"
+	                                        disabled={!targetConceptId}
+	                                        onClick={() => {
+	                                          if (!targetConceptId) return;
+	                                          selectConcept(targetConceptId);
+	                                          focusConceptInGraph(targetConceptId);
+	                                        }}
+	                                      >
+	                                        Show in graph
+	                                      </button>
+	                                    </div>
+	                                  </div>
+	                                  <div className="mutedText">
+	                                    {s.conceptIds.length > 0
+	                                      ? `Attached to ${s.conceptIds.length} concept(s)`
+	                                      : "Not attached to a concept"}
+	                                  </div>
+	                                  <div className="searchWhy">
+	                                    <span className="mutedText">Why matched: </span>
+	                                    <HighlightedText
+	                                      value={s.snippetHighlight}
+	                                      fallback={s.source.url}
+	                                    />
+	                                  </div>
+	                                </li>
+	                              );
+	                            })}
+	                          </ul>
+	                        </div>
+	                      ) : null}
+
+	                      {searchFacetAllowlist.has("evidence") ? (
+	                        <div className="searchGroup">
+	                          <div className="searchGroupTitle">Evidence</div>
+	                          <ul className="searchResultList" aria-label="Evidence results">
+	                            {scopedUniversalSearch.evidence.map((e) => {
+	                              const targetConceptId = e.conceptIds[0] ?? null;
+	                              const sourceLabel = e.chunk.sourceTitle ?? e.chunk.sourceUrl;
+	                              return (
+	                                <li key={e.chunk.id} className="searchResult">
+	                                  <div className="searchResultTop">
+	                                    <div className="searchResultTitle">
+	                                      <HighlightedText
+	                                        value={e.snippetHighlight}
+	                                        fallback={e.chunk.content}
+	                                      />
+	                                    </div>
+	                                    <div className="searchResultActions">
+	                                      <button
+	                                        type="button"
+	                                        className="ghostButton"
+	                                        onClick={() => openSource(e.chunk.sourceId)}
+	                                      >
+	                                        Open
+	                                      </button>
+	                                      <button
+	                                        type="button"
+	                                        className="ghostButton"
+	                                        disabled={!targetConceptId}
+	                                        onClick={() => {
+	                                          if (!targetConceptId) return;
+	                                          selectConcept(targetConceptId);
+	                                          focusConceptInGraph(targetConceptId);
+	                                        }}
+	                                      >
+	                                        Show in graph
+	                                      </button>
+	                                    </div>
+	                                  </div>
+	                                  <div className="mutedText">{sourceLabel}</div>
+	                                </li>
+	                              );
+	                            })}
+	                          </ul>
+	                        </div>
+	                      ) : null}
+	                    </div>
+	                  )
+	                ) : null}
+	              </>
+	            ) : !graph ? (
+	              <SkeletonBlock lines={6} />
+	            ) : (
+	              <ul className="nodeList" aria-label="Concepts">
+	                {filteredNodes.map((n) => (
+	                  <ConceptListItem
+	                    key={n.id}
+	                    node={n}
+	                    selected={selectedConceptId === n.id}
+	                    onSelect={selectConcept}
+	                  />
+	                ))}
+	              </ul>
+	            )}
+	          </div>
 
           <div className="section">
             <EdgeTypeFilter selected={selectedEdgeTypes} onToggle={toggleEdgeType} />
@@ -1012,21 +1327,22 @@ export default function App() {
               </div>
 
               <div className="atlasWrap">
-                <AtlasView
-                  graph={graph}
-                  clusteredData={clusteredData}
-                  graphMode={graphMode}
-                  edgeTypeAllowlist={selectedEdgeTypes}
-                  highlightConceptIds={tutorHighlightedConceptIds}
-                  changesetHighlightConceptIds={changesetHighlightConceptIds}
-                  masteryOverlayEnabled={masteryOverlayEnabled}
-                  selectedConceptId={selectedConceptId}
-                  pinnedConceptIds={pinnedConceptIds}
-                  focusModeEnabled={focusModeEnabled}
-                  focusDepth={focusDepth}
-                  onSelectConcept={selectConcept}
-                  onSelectEdge={selectEdge}
-                />
+	                <AtlasView
+	                  graph={graph}
+	                  clusteredData={clusteredData}
+	                  graphMode={graphMode}
+	                  edgeTypeAllowlist={selectedEdgeTypes}
+	                  highlightConceptIds={tutorHighlightedConceptIds}
+	                  changesetHighlightConceptIds={changesetHighlightConceptIds}
+	                  masteryOverlayEnabled={masteryOverlayEnabled}
+	                  selectedConceptId={selectedConceptId}
+	                  pinnedConceptIds={pinnedConceptIds}
+	                  focusModeEnabled={focusModeEnabled}
+	                  focusDepth={focusDepth}
+	                  onSelectConcept={selectConcept}
+	                  onSelectEdge={selectEdge}
+	                  onCyReady={handleCyReady}
+	                />
               </div>
             </>
           )}

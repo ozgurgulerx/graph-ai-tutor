@@ -79,7 +79,6 @@ export function InboxPanel(props: {
     try {
       const res = await getChangesets();
       setChangesets(res.changesets);
-      setSelectedChangesetId((prev) => prev ?? (res.changesets[0]?.id ?? null));
     } catch (err) {
       setChangesetsError(err instanceof Error ? err.message : "Failed to load changesets");
     } finally {
@@ -111,6 +110,33 @@ export function InboxPanel(props: {
   useEffect(() => {
     void refreshChangesets();
   }, [refreshChangesets]);
+
+  const changesetCounts = useMemo(() => {
+    const counts: Record<ChangesetListFilter, number> = {
+      proposed: 0,
+      applied: 0,
+      rejected: 0
+    };
+    for (const cs of changesets ?? []) {
+      counts[listFilterForStatus(cs.status)] += 1;
+    }
+    return counts;
+  }, [changesets]);
+
+  const filteredChangesets = useMemo(() => {
+    return (changesets ?? []).filter((cs) => listFilterForStatus(cs.status) === listFilter);
+  }, [changesets, listFilter]);
+
+  useEffect(() => {
+    if (filteredChangesets.length === 0) {
+      setSelectedChangesetId(null);
+      return;
+    }
+    setSelectedChangesetId((prev) => {
+      if (prev && filteredChangesets.some((cs) => cs.id === prev)) return prev;
+      return filteredChangesets[0]?.id ?? null;
+    });
+  }, [filteredChangesets]);
 
   useEffect(() => {
     if (!selectedChangesetId) return;
@@ -206,6 +232,21 @@ export function InboxPanel(props: {
     }
   }
 
+  async function rejectChangeset() {
+    if (!detail) return;
+    setDetailError(null);
+    setApplyError(null);
+    setApplyResult(null);
+
+    try {
+      const res = await postChangesetStatus(detail.changeset.id, { status: "rejected" });
+      setDetail((prev) => (prev ? { ...prev, changeset: res.changeset } : prev));
+      await refreshChangesets();
+    } catch (err) {
+      setDetailError(err instanceof Error ? err.message : "Failed to reject changeset");
+    }
+  }
+
   return (
     <div className="inboxPanel" data-testid="inbox-panel">
       <div className="inboxHeader">
@@ -220,6 +261,33 @@ export function InboxPanel(props: {
         </button>
       </div>
 
+      <div className="buttonRow" aria-label="Changeset status filters">
+        <button
+          type="button"
+          className={listFilter === "proposed" ? "primaryButton" : "secondaryButton"}
+          onClick={() => setListFilter("proposed")}
+          disabled={changesetsLoading}
+        >
+          Proposed ({changesetCounts.proposed})
+        </button>
+        <button
+          type="button"
+          className={listFilter === "applied" ? "primaryButton" : "secondaryButton"}
+          onClick={() => setListFilter("applied")}
+          disabled={changesetsLoading}
+        >
+          Applied ({changesetCounts.applied})
+        </button>
+        <button
+          type="button"
+          className={listFilter === "rejected" ? "primaryButton" : "secondaryButton"}
+          onClick={() => setListFilter("rejected")}
+          disabled={changesetsLoading}
+        >
+          Rejected ({changesetCounts.rejected})
+        </button>
+      </div>
+
       {changesetsError ? (
         <p role="alert" className="errorText">
           {changesetsError}
@@ -228,9 +296,9 @@ export function InboxPanel(props: {
 
       {changesetsLoading ? (
         <p className="mutedText">Loading changesets...</p>
-      ) : changesets && changesets.length > 0 ? (
+      ) : filteredChangesets.length > 0 ? (
         <ul className="inboxList" aria-label="Changesets">
-          {changesets.map((cs) => (
+          {filteredChangesets.map((cs) => (
             <li key={cs.id}>
               <button
                 type="button"
@@ -240,13 +308,13 @@ export function InboxPanel(props: {
                 aria-current={selectedChangesetId === cs.id ? "true" : undefined}
               >
                 <span className="nodeTitle">{cs.id}</span>
-                <span className="nodeModule">{cs.status}</span>
+                <span className="nodeModule">{formatChangesetStatus(cs.status)}</span>
               </button>
             </li>
           ))}
         </ul>
       ) : (
-        <p className="mutedText">(No changesets)</p>
+        <p className="mutedText">(No {listFilter} changesets)</p>
       )}
 
       <div className="conceptSection" aria-label="Changeset details">
@@ -260,7 +328,7 @@ export function InboxPanel(props: {
           <>
             <div className="inboxChangesetMeta">
               <span className="mutedText">
-                {detail.changeset.id} • {detail.changeset.status}
+                {detail.changeset.id} • {formatChangesetStatus(detail.changeset.status)}
               </span>
               <span className="mutedText">
                 Accepted: {acceptedCount}/{detail.items.length}
@@ -297,6 +365,10 @@ export function InboxPanel(props: {
                             fromId
                           )} ${type} ${getConceptTitle(props.graph, proposedConceptTitles, toId)}`;
                         })()
+                      : item.entityType === "file" && item.action === "patch"
+                        ? typeof payload.filePath === "string"
+                          ? `Patch ${payload.filePath}`
+                          : item.id
                       : `${item.entityType}/${item.action}`;
 
                 return (
@@ -364,6 +436,20 @@ export function InboxPanel(props: {
                       </div>
                     ) : null}
 
+                    {item.entityType === "file" && item.action === "patch" ? (
+                      <div className="inboxPayload">
+                        <div className="mutedText">
+                          file:{" "}
+                          {typeof payload.filePath === "string" ? payload.filePath : "(missing)"}
+                        </div>
+                        {typeof payload.unifiedDiff === "string" ? (
+                          <pre className="revisionDiff">{payload.unifiedDiff}</pre>
+                        ) : (
+                          <div className="mutedText">(missing diff)</div>
+                        )}
+                      </div>
+                    ) : null}
+
                     {hasEvidence ? (
                       <div className="inboxEvidence" aria-label="Evidence chunks">
                         {evidenceChunkIds.map((id) => {
@@ -403,12 +489,23 @@ export function InboxPanel(props: {
                 disabled={
                   applyLoading ||
                   detail.changeset.status === "applied" ||
+                  detail.changeset.status === "rejected" ||
                   acceptedCount === 0 ||
                   detailLoading
                 }
               >
                 Apply accepted
               </button>
+              {detail.changeset.status === "draft" ? (
+                <button
+                  type="button"
+                  className="dangerButton"
+                  onClick={rejectChangeset}
+                  disabled={applyLoading || detailLoading}
+                >
+                  Reject changeset
+                </button>
+              ) : null}
               {applyResult ? <span className="mutedText">{applyResult}</span> : null}
             </div>
 

@@ -44,7 +44,8 @@ import {
   PostSubmitTrainingAnswerResponseSchema,
   PostCompleteTrainingSessionResponseSchema,
   SearchExactResponseSchema,
-  SearchResponseSchema
+  SearchResponseSchema,
+  SearchUniversalResponseSchema
 } from "@graph-ai-tutor/shared";
 
 import type { CaptureLlm } from "./capture";
@@ -126,14 +127,22 @@ function createMockTrainingLlm(): TrainingLlm {
   };
 }
 
-async function createTestApp(options: { extractionLlm?: ExtractionLlm; captureLlm?: CaptureLlm; trainingLlm?: TrainingLlm } = {}) {
+async function createTestApp(
+  options: {
+    extractionLlm?: ExtractionLlm;
+    captureLlm?: CaptureLlm;
+    trainingLlm?: TrainingLlm;
+    vaultRoot?: string;
+  } = {}
+) {
   const db = await openDb({ pool: createMemPool() });
   const app = buildServer({
     repos: db,
     distillLlm: createTestDistillLlm(),
     extractionLlm: options.extractionLlm,
     captureLlm: options.captureLlm,
-    trainingLlm: options.trainingLlm
+    trainingLlm: options.trainingLlm,
+    vaultRoot: options.vaultRoot
   });
   return { app, db };
 }
@@ -779,6 +788,57 @@ describe("API v1", () => {
       const graph = GraphResponseSchema.parse(json(graphRes));
       expect(graph.nodes.map((n) => n.id)).toContain("concept_new");
       expect(graph.edges.map((e) => e.type)).toContain("PREREQUISITE_OF");
+    } finally {
+      await app.close();
+      await db.close();
+    }
+  });
+
+  it("Changeset patch flow: accept hunk, apply writes file, and updates file index", async () => {
+    const vaultRoot = await fs.mkdtemp(path.join(os.tmpdir(), "graph-ai-tutor-vault-"));
+    await fs.writeFile(path.join(vaultRoot, "note.md"), "hello\\nworld\\n", "utf8");
+
+    const { app, db } = await createTestApp({ vaultRoot });
+    try {
+      const changeset = await db.changeset.create({ id: "changeset_patch_1" });
+      await db.changesetItem.create({
+        id: "changeset_item_patch_1",
+        changesetId: changeset.id,
+        entityType: "file",
+        action: "patch",
+        status: "pending",
+        payload: {
+          filePath: "note.md",
+          unifiedDiff: "@@ -1,2 +1,2 @@\\n hello\\n-world\\n+there\\n"
+        }
+      });
+
+      const acceptRes = await app.inject({
+        method: "POST",
+        url: "/api/changeset-item/changeset_item_patch_1/status",
+        headers: { "content-type": "application/json" },
+        payload: JSON.stringify({ status: "accepted" })
+      });
+      expect(acceptRes.statusCode).toBe(200);
+
+      const applyRes = await app.inject({
+        method: "POST",
+        url: "/api/changeset/changeset_patch_1/apply"
+      });
+      expect(applyRes.statusCode).toBe(200);
+      const applied = PostApplyChangesetResponseSchema.parse(json(applyRes));
+      expect(applied.changeset.status).toBe("applied");
+      expect(applied.applied.conceptIds).toEqual([]);
+      expect(applied.applied.edgeIds).toEqual([]);
+
+      const updated = await fs.readFile(path.join(vaultRoot, "note.md"), "utf8");
+      expect(updated).toBe("hello\\nthere\\n");
+
+      const indexed = await db.vaultFile.getByPath("note.md");
+      expect(indexed?.content).toBe("hello\\nthere\\n");
+
+      const item = await db.changesetItem.getById("changeset_item_patch_1");
+      expect(item?.status).toBe("applied");
     } finally {
       await app.close();
       await db.close();

@@ -20,6 +20,7 @@ import {
   GetSourceParamsSchema,
   GetReviewDueQuerySchema,
   GetReviewDueResponseSchema,
+  GraphClusteredResponseSchema,
   GraphQuerySchema,
   GraphResponseSchema,
   PostApplyChangesetResponseSchema,
@@ -344,7 +345,7 @@ function registerApiRoutes(
     const query = parseOr400(reply, GraphQuerySchema, req.query ?? {});
     if (!query) return;
 
-    const typeAllowlist = new Set(query.typeFilters);
+    const typeAllowlist: Set<string> = new Set(query.typeFilters);
     const allowEdgeType = (type: string) => typeAllowlist.size === 0 || typeAllowlist.has(type);
 
     const center = query.center?.trim();
@@ -1466,7 +1467,7 @@ function registerApiRoutes(
         };
       }
 
-      const res = await deps.repos.changeset.applyAccepted(params.id, filePatchOptions);
+      const res = await deps.repos.changeset.applyAccepted(params.id, filePatchOptions ?? {});
       const validated = parseOr400(reply, PostApplyChangesetResponseSchema, {
         changeset: res.changeset,
         applied: {
