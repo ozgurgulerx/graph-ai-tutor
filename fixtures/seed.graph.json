@@ -1,0 +1,59 @@
+{
+  "concepts": [
+    {
+      "id": "concept_kv_cache",
+      "title": "KV cache",
+      "l0": "Key/value tensors cached during autoregressive decoding to avoid recomputing attention.",
+      "l1": [
+        "Speeds up decoding",
+        "Stores keys and values per layer"
+      ],
+      "module": "inference"
+    },
+    {
+      "id": "concept_self_attention",
+      "title": "Self-attention",
+      "l0": "A mechanism that mixes information across tokens using query-key matching.",
+      "l1": [
+        "Q, K, V projections",
+        "Softmax(QK^T) attention weights",
+        "Weighted sum of V"
+      ],
+      "module": "architectures"
+    }
+  ],
+  "sources": [
+    {
+      "id": "source_seed_kv",
+      "url": "seed://kv-cache",
+      "title": "KV cache notes"
+    }
+  ],
+  "chunks": [
+    {
+      "id": "chunk_seed_kv_1",
+      "sourceId": "source_seed_kv",
+      "content": "During autoregressive decoding, keys and values from previous tokens are cached per layer to avoid recomputing attention over the full prefix.",
+      "startOffset": 0,
+      "endOffset": 142
+    }
+  ],
+  "edges": [
+    {
+      "id": "edge_seed_1",
+      "fromConceptId": "concept_self_attention",
+      "toConceptId": "concept_kv_cache",
+      "type": "USED_IN",
+      "sourceUrl": "seed://kv-cache",
+      "confidence": 0.8,
+      "verifierScore": null,
+      "evidenceChunkIds": [
+        "chunk_seed_kv_1"
+      ]
+    }
+  ],
+  "changesets": [],
+  "changesetItems": [],
+  "reviewItems": []
+}
+

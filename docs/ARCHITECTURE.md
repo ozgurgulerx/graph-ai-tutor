@@ -27,7 +27,7 @@ Recommended stack (Codex-friendly)
 - Web: Vite + React + TypeScript
 - Graph viz: Cytoscape.js
 - API: Fastify + TypeScript
-- DB: SQLite (local file)
+- DB: Postgres (local via Docker; prod uses the same engine)
 - Schema/contracts: Zod shared between FE/BE
 - Tests: Vitest (unit), Playwright (e2e)
 - LLM API: Responses API (not Assistants)
@@ -38,7 +38,7 @@ Monorepo (pnpm workspaces, likely turborepo) layout:
 - `apps/web`: Vite + React + TypeScript frontend (3-pane layout, focus mode, Inbox, Tutor, Review)
 - `apps/api`: Fastify + TypeScript backend (contract-first, schema-validated IO)
 - `packages/shared`: Shared Zod schemas + TypeScript types + typed API client (source of truth)
-- `packages/db`: SQLite schema, migrations, repositories
+- `packages/db`: Postgres schema, migrations, repositories
 - `packages/llm`: OpenAI Responses API wrapper + routing (nano vs mini) + Structured Outputs helpers
 - `packages/ui`: Shared UI components (optional)
 
@@ -51,7 +51,7 @@ apps/
   web/                 # Vite React UI
 packages/
   shared/              # Zod schemas, types, api client
-  db/                  # SQLite schema + migrations + repository layer
+  db/                  # Postgres schema + migrations + repository layer
   llm/                 # OpenAI Responses wrapper + prompts + router
 docs/
   PRODUCT.md
@@ -82,7 +82,7 @@ Core entities (names may map 1:1 to tables/collections):
 - Persisted AI-generated changes are always user-approved proposals (audit-friendly).
 
 ### Minimal Property Graph (MVP)
-This system is a property graph backed by SQLite tables.
+This system is a property graph backed by Postgres tables.
 
 Node types (MVP starts with Concept; others can be added as needed):
 - Concept (default)
@@ -111,7 +111,7 @@ Evidence model (required for trust):
 - Source ingestion:
   - capture URL/PDF/text -> store Source + raw content
   - chunk (~800-1200 chars with overlap) -> store Chunks with offsets + provenance
-  - index for search (SQLite FTS v1; embeddings/vectors v2)
+  - index for search (Postgres FTS v1; embeddings via pgvector v2)
 - Extraction:
   - extractor proposes Concepts/Edges with evidence chunk ids (Structured Outputs)
   - entity resolution proposes merges/aliases (candidate-only)
@@ -178,11 +178,11 @@ Keep fixtures in `fixtures/` and document the eval harness in `docs/EVALS.md`.
 ## Storage
 Target storage approach:
 - Primary DB:
-  - Dev: SQLite
-  - Prod: Postgres (if/when needed)
+  - Dev: Postgres (local via Docker)
+  - Prod: Postgres
   - Migrations are mandatory for schema changes.
 - Search/Retrieval:
-  - Use SQLite FTS for chunks early; add vector search later if needed.
+  - Use Postgres full-text search early; add pgvector later if needed.
 - Files:
   - Store imported files and derived artifacts outside git (e.g., `data/`), with clear `.gitignore`.
 - Fixtures:

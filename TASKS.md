@@ -24,14 +24,14 @@ Create docs/PRODUCT.md, docs/UX.md, docs/ARCHITECTURE.md describing:
 - Data entities: Concept, Edge, Source, Chunk, Changeset, ReviewItem
 - Invariants: changesets only; no auto-commits to graph
 Keep it concise but precise. No code changes besides docs.
-Task 3 — SQLite schema + migrations (db package)
+Task 3 — Postgres schema + migrations (db package)
 Goal: Implement stable storage for graph + sources + changesets.
 Acceptance gates
 migration runs on startup
 seed loads
 unit tests for basic CRUD
 Codex prompt
-Implement packages/db with SQLite schema + migrations for:
+Implement packages/db with Postgres schema + migrations for:
 Concept, Edge, Source, Chunk, Changeset, ChangesetItem, ReviewItem.
 Include a seed loader from fixtures/seed.graph.json.
 Expose repository methods with TypeScript types.
@@ -122,7 +122,7 @@ Add ingestion endpoint:
 - Upload text/markdown/PDF (store file + metadata)
 - Create Source record
 - Chunk into ~800-1200 char chunks with overlap
-- Store Chunk records and build SQLite FTS index
+- Store Chunk records and build Postgres FTS index
 Add /search that includes chunk hits.
 Add tests using fixtures/seed.sources.
 Task 11 — LLM client wrapper (Responses API)
@@ -292,6 +292,6 @@ data stored locally
 Codex prompt
 Add a packaging option:
 - either Tauri or Electron, or a single `pnpm start` that runs api+web
-- ensure SQLite path is local and configurable
+- ensure `DATABASE_URL` is local and configurable
 Document install/run steps.
 Do not break existing dev workflow.

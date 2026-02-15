@@ -1,0 +1,20 @@
+{
+  "name": "@graph-ai-tutor/db",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "lint": "pnpm -w exec eslint packages/db --max-warnings 0",
+    "typecheck": "pnpm -w exec tsc -p packages/db/tsconfig.json --noEmit",
+    "test": "pnpm -w exec vitest run --root packages/db"
+  },
+  "dependencies": {
+    "pg": "^8.14.1"
+  },
+  "devDependencies": {
+    "@types/pg": "^8.11.11",
+    "pg-mem": "^3.0.5"
+  }
+}
