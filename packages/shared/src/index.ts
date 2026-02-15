@@ -3,6 +3,8 @@ export {
   HealthResponseSchema
 } from "./schemas/health";
 
+export { createApiClient, type ApiClient, getConcept, getGraph } from "./api/client";
+
 export {
   ApiErrorSchema,
   type ApiError,

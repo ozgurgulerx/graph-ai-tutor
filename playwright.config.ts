@@ -9,11 +9,19 @@ export default defineConfig({
     baseURL: "http://localhost:5173",
     trace: "retain-on-failure"
   },
-  webServer: {
-    command: "pnpm --filter @graph-ai-tutor/web dev",
-    url: "http://localhost:5173",
-    reuseExistingServer: true
-  },
+  webServer: [
+    {
+      command: "pnpm --filter @graph-ai-tutor/api dev",
+      url: "http://127.0.0.1:3000/health",
+      reuseExistingServer: true,
+      env: { DATABASE_URL: "", NODE_ENV: "test" }
+    },
+    {
+      command: "pnpm --filter @graph-ai-tutor/web dev",
+      url: "http://localhost:5173",
+      reuseExistingServer: true
+    }
+  ],
   projects: [
     {
       name: "chromium",

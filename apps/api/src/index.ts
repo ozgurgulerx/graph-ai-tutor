@@ -8,15 +8,33 @@ import { buildServer } from "./server";
 const port = Number(process.env.PORT ?? 3000);
 const host = process.env.HOST ?? "127.0.0.1";
 
-const defaultDatabaseUrl = "postgres://graph:graph@localhost:5432/graph_ai_tutor";
-const databaseUrl = process.env.DATABASE_URL ?? defaultDatabaseUrl;
-
 const here = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(here, "../../..");
 const seedPath = path.join(repoRoot, "fixtures", "seed.graph.json");
 
+async function createMemPool() {
+  const { newDb } = await import("pg-mem");
+  const mem = newDb({ autoCreateForeignKeyIndices: true });
+  const { Pool } = mem.adapters.createPg();
+  return new Pool();
+}
+
 async function main() {
-  const db = await openDb({ connectionString: databaseUrl });
+  const databaseUrl = process.env.DATABASE_URL;
+  if (!databaseUrl && process.env.NODE_ENV === "production") {
+    throw new Error("DATABASE_URL is required in production");
+  }
+
+  if (!databaseUrl) {
+    // eslint-disable-next-line no-console
+    console.warn(
+      "DATABASE_URL not set; using in-memory pg-mem database. Set DATABASE_URL for persistence."
+    );
+  }
+
+  const db = databaseUrl
+    ? await openDb({ connectionString: databaseUrl })
+    : await openDb({ pool: await createMemPool() });
   await ensureSeedFromFile(db, seedPath);
 
   const app = buildServer({ repos: db });
@@ -33,4 +51,3 @@ main().catch((err) => {
   console.error(err);
   process.exit(1);
 });
-

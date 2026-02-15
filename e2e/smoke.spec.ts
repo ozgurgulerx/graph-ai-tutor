@@ -1,9 +1,7 @@
 import { expect, test } from "@playwright/test";
 
-test("web loads", async ({ page }) => {
+test("selecting a concept opens it in the Concept panel", async ({ page }) => {
   await page.goto("/");
-  await expect(
-    page.getByRole("heading", { name: /graph ai tutor/i })
-  ).toBeVisible();
+  await page.getByRole("button", { name: /kv cache/i }).click();
+  await expect(page.getByTestId("concept-title")).toHaveText(/kv cache/i);
 });
-
