@@ -35,6 +35,7 @@ import { CommandPalette } from "./CommandPalette";
 import { TrainingPanel } from "./TrainingPanel";
 import { collectWithinHops } from "./search/neighborhood";
 import { HighlightedText } from "./search/HighlightedText";
+import { usePanelResize } from "./usePanelResize";
 
 type AtlasViewProps = {
   graph: GraphResponse | null;
@@ -516,6 +517,15 @@ function AtlasView({
     applyMasteryOverlay(cy, graph, masteryOverlayEnabled);
   }, [graph, masteryOverlayEnabled]);
 
+  useEffect(() => {
+    const el = containerRef.current;
+    const cy = cyRef.current;
+    if (!el || !cy) return;
+    const ro = new ResizeObserver(() => cy.resize());
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+
   return <div className="atlas" data-testid="atlas" ref={containerRef} />;
 }
 
@@ -561,6 +571,7 @@ function ConceptListItem(props: {
 }
 
 export default function App() {
+  const { shellRef, leftDividerProps, rightDividerProps, gridTemplateColumns } = usePanelResize();
   const atlasCyRef = useRef<cytoscape.Core | null>(null);
   const focusTimerRef = useRef<number | null>(null);
 
@@ -962,7 +973,7 @@ export default function App() {
         />
       ) : null}
 
-      <div className="shell">
+      <div className="shell" ref={shellRef} style={{ gridTemplateColumns }}>
         <aside className="pane leftPane" aria-label="Navigation">
           <div className="section">
             <div className="sectionTitle">Nav</div>
@@ -1280,6 +1291,8 @@ export default function App() {
           </div>
         </aside>
 
+        <div className="divider" {...leftDividerProps} role="separator" aria-label="Resize left panel" />
+
         <main className="pane centerPane" aria-label={contextPackContent ? "Context Pack" : "Atlas"}>
           {contextPackContent ? (
             <>
@@ -1352,6 +1365,8 @@ export default function App() {
             </>
           )}
         </main>
+
+        <div className="divider" {...rightDividerProps} role="separator" aria-label="Resize right panel" />
 
         <section className="pane rightPane" aria-label="Concept">
           <div className="tabs" role="tablist" aria-label="Right panel tabs">
