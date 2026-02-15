@@ -2,10 +2,11 @@ import cytoscape from "cytoscape";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import {
-  EdgeTypeSchema,
+  getDefaultEdgeTypes,
   type Concept,
   type ConceptSummary,
   type EdgeType,
+  type EdgeTypeCategory,
   type GetEdgeEvidenceResponse,
   type GraphClusteredResponse,
   type GraphLensResponse,
@@ -23,6 +24,7 @@ import {
   getUniversalSearch,
   invalidateConceptCache,
   postConcept,
+  postEdge,
   prefetchConcept
 } from "./api/client";
 import { CaptureModal } from "./CaptureModal";
@@ -35,6 +37,9 @@ import { ConceptSkeleton, SkeletonBlock } from "./Skeleton";
 import { SourcePanel } from "./SourcePanel";
 import { TutorPanel } from "./TutorPanel";
 import { CommandPalette } from "./CommandPalette";
+import { EdgeTypePicker } from "./EdgeTypePicker";
+import type { EdgeDraftState } from "./LensEditToolbar";
+import { LensEditToolbar } from "./LensEditToolbar";
 import { TrainingPanel } from "./TrainingPanel";
 import { collectWithinHops } from "./search/neighborhood";
 import { HighlightedText } from "./search/HighlightedText";
@@ -277,8 +282,14 @@ function applyFocusMode(
   });
 }
 
+const ANIM_NODE_THRESHOLD = 200;
+
 const LENS_X_GAP = 250;
 const LENS_Y_GAP = 80;
+
+const ZOOM_FAR = 0.5;
+const ZOOM_MID = 1.0;
+const SEMANTIC_ZOOM_TOP_K = 10;
 
 function computeLensPositions(metadata: LensNodeMetadata[]): Map<string, { x: number; y: number }> {
   const groups = new Map<string, LensNodeMetadata[]>();
@@ -330,11 +341,13 @@ function applyLensMode(
     if (!lensEdgeIds.has(edge.id())) edge.addClass("lensHidden");
   });
 
-  // 4. Position lens nodes
+  // 4. Position lens nodes (animated)
   const positions = computeLensPositions(opts.data.metadata);
   for (const [id, pos] of positions) {
     const node = cy.$id(id);
-    if (!node.empty()) node.position(pos);
+    if (!node.empty()) {
+      node.stop().animate({ position: pos, duration: 400, easing: "ease-in-out-sine" });
+    }
   }
 
   // 5. Classify nodes
@@ -359,6 +372,50 @@ function applyLensMode(
     if (type === "PREREQUISITE_OF") edge.addClass("lensEdgeBackbone");
     else edge.addClass("lensEdgeSecondary");
   }
+}
+
+function applySemanticZoom(
+  cy: cytoscape.Core,
+  opts: {
+    viewMode: GraphViewMode;
+    lensData: GraphLensResponse | null;
+    selectedConceptId: string | null;
+    pinnedConceptIds: ReadonlySet<string>;
+    topKNodeIds: ReadonlySet<string>;
+  }
+) {
+  const zoom = cy.zoom();
+
+  // In lens mode, all lens nodes show labels; others already hidden
+  if (opts.viewMode === "lens" && opts.lensData) {
+    cy.nodes().removeClass("labelHidden");
+    return;
+  }
+
+  // Close zoom: all labels visible
+  if (zoom >= ZOOM_MID) {
+    cy.nodes().removeClass("labelHidden");
+    return;
+  }
+
+  // Far zoom: no labels
+  if (zoom < ZOOM_FAR) {
+    cy.batch(() => { cy.nodes().addClass("labelHidden"); });
+    return;
+  }
+
+  // Mid zoom: selective labels
+  cy.batch(() => {
+    cy.nodes().forEach((node) => {
+      const id = node.id();
+      const keep = node.data("isCluster") === true
+        || id === opts.selectedConceptId
+        || opts.pinnedConceptIds.has(id)
+        || opts.topKNodeIds.has(id);
+      if (keep) node.removeClass("labelHidden");
+      else node.addClass("labelHidden");
+    });
+  });
 }
 
 function AtlasView({
@@ -434,6 +491,13 @@ function AtlasView({
     lensDataRef.current = lensData;
   }, [lensData]);
 
+  const selectedConceptIdRef = useRef(selectedConceptId);
+  useEffect(() => {
+    selectedConceptIdRef.current = selectedConceptId;
+  }, [selectedConceptId]);
+
+  const topKRef = useRef<Set<string>>(new Set());
+
   const elements = useMemo(
     () => (graph ? buildElements(graph, clusteredData, graphMode) : []),
     [graph, clusteredData, graphMode]
@@ -459,7 +523,10 @@ function AtlasView({
             "text-background-padding": "3px",
             "text-background-shape": "roundrectangle",
             "background-color": "#111827",
-            color: "#0f172a"
+            color: "#0f172a",
+            "transition-property": "opacity, background-color, border-width, border-color, width, height",
+            "transition-duration": 300,
+            "transition-timing-function": "ease-in-out-sine"
           }
         },
         {
@@ -516,6 +583,23 @@ function AtlasView({
           }
         },
         {
+          selector: "node.selectPulse",
+          style: {
+            "border-width": 5,
+            "border-color": "#3b82f6",
+            "overlay-opacity": 0.1,
+            "overlay-color": "#3b82f6"
+          }
+        },
+        {
+          selector: "node.edgeDraftSource",
+          style: {
+            "border-width": 4,
+            "border-color": "#f59e0b",
+            "border-style": "double"
+          }
+        },
+        {
           selector: "node.dimmed",
           style: {
             opacity: 0.15,
@@ -529,7 +613,10 @@ function AtlasView({
             "line-color": "#94a3b8",
             "target-arrow-color": "#94a3b8",
             "target-arrow-shape": "triangle",
-            "curve-style": "bezier"
+            "curve-style": "bezier",
+            "transition-property": "opacity, line-color, width",
+            "transition-duration": 300,
+            "transition-timing-function": "ease-in-out-sine"
           }
         },
         {
@@ -610,6 +697,13 @@ function AtlasView({
             "text-halign": "center",
             color: "#475569"
           }
+        },
+        {
+          selector: "node.labelHidden",
+          style: {
+            "text-opacity": 0,
+            "text-background-opacity": 0
+          }
         }
       ],
       layout: { name: "cose", animate: false, fit: true }
@@ -617,7 +711,10 @@ function AtlasView({
 
     const onTapNode = (evt: cytoscape.EventObject) => {
       const id = evt.target.id();
-      if (typeof id === "string" && id.length > 0) onSelectRef.current(id);
+      if (typeof id === "string" && id.length > 0) {
+        evt.target.flashClass("selectPulse", 400);
+        onSelectRef.current(id);
+      }
     };
 
     const onTapEdge = (evt: cytoscape.EventObject) => {
@@ -625,17 +722,59 @@ function AtlasView({
       if (typeof id === "string" && id.length > 0) onSelectEdgeRef.current(id);
     };
 
+    const onMouseOver = (evt: cytoscape.EventObject) => {
+      const node = evt.target;
+      if (node.isParent?.()) return;
+      node.stop().animate({
+        style: { width: 35, height: 35 },
+        duration: 150,
+        easing: "ease-out-cubic"
+      });
+    };
+
+    const onMouseOut = (evt: cytoscape.EventObject) => {
+      const node = evt.target;
+      if (node.isParent?.()) return;
+      node.stop().animate({
+        style: { width: 30, height: 30 },
+        duration: 150,
+        easing: "ease-out-cubic"
+      });
+    };
+
     cy.on("tap", "node", onTapNode);
     cy.on("tap", "edge", onTapEdge);
+    cy.on("mouseover", "node", onMouseOver);
+    cy.on("mouseout", "node", onMouseOut);
     cyRef.current = cy;
     onCyReadyRef.current?.(cy);
 
     if (import.meta.env.DEV) window.__CY__ = cy;
 
+    let rafId: number | null = null;
+    const onViewport = () => {
+      if (rafId !== null) return;
+      rafId = requestAnimationFrame(() => {
+        rafId = null;
+        applySemanticZoom(cy, {
+          viewMode: viewModeRef.current,
+          lensData: lensDataRef.current,
+          selectedConceptId: selectedConceptIdRef.current,
+          pinnedConceptIds: pinnedRef.current,
+          topKNodeIds: topKRef.current
+        });
+      });
+    };
+    cy.on("viewport", onViewport);
+
     return () => {
+      if (rafId !== null) cancelAnimationFrame(rafId);
+      cy.removeListener("viewport", onViewport);
       if (import.meta.env.DEV && window.__CY__ === cy) delete window.__CY__;
       cy.removeListener("tap", "node", onTapNode);
       cy.removeListener("tap", "edge", onTapEdge);
+      cy.removeListener("mouseover", "node", onMouseOver);
+      cy.removeListener("mouseout", "node", onMouseOut);
       cy.destroy();
       cyRef.current = null;
       onCyReadyRef.current?.(null);
@@ -651,13 +790,39 @@ function AtlasView({
     cy.elements().remove();
     if (elements.length > 0) {
       cy.add(elements);
-      cy.layout({ name: "cose", animate: false, fit: true }).run();
+      cy.layout({
+        name: "cose",
+        animate: (elements.length <= ANIM_NODE_THRESHOLD ? "end" : false) as boolean,
+        animationDuration: 600,
+        animationEasing: "ease-out-cubic",
+        fit: true
+      }).run();
     }
 
     applyEdgeFilter(cy, allowlistRef.current, edgeVisModeRef.current);
     applyConceptHighlight(cy, highlightRef.current);
     applyChangesetHighlight(cy, changesetHighlightRef.current);
     applyPinnedNodes(cy, pinnedRef.current);
+
+    // Compute top-K by degree for semantic zoom
+    const leafNodes = cy.nodes().filter((n: cytoscape.NodeSingular) => !n.isParent());
+    const sorted = leafNodes.sort((a: cytoscape.NodeSingular, b: cytoscape.NodeSingular) =>
+      b.degree(false) - a.degree(false)
+    );
+    const topK = new Set<string>();
+    const limit = Math.min(SEMANTIC_ZOOM_TOP_K, sorted.length);
+    for (let i = 0; i < limit; i++) {
+      topK.add(sorted[i].id());
+    }
+    topKRef.current = topK;
+
+    applySemanticZoom(cy, {
+      viewMode: viewModeRef.current,
+      lensData: lensDataRef.current,
+      selectedConceptId: selectedConceptIdRef.current,
+      pinnedConceptIds: pinnedRef.current,
+      topKNodeIds: topK
+    });
 
     // If currently in lens mode, save fresh COSE positions and reapply lens
     if (viewModeRef.current === "lens" && lensDataRef.current) {
@@ -737,13 +902,27 @@ function AtlasView({
       if (preLensPositionsRef.current) {
         for (const [id, pos] of preLensPositionsRef.current) {
           const node = cy.$id(id);
-          if (!node.empty()) node.position(pos);
+          if (!node.empty()) {
+            node.stop().animate({ position: pos, duration: 400, easing: "ease-in-out-sine" });
+          }
         }
         preLensPositionsRef.current = null;
         cy.animate({ fit: { eles: cy.elements(), padding: 50 }, duration: 400 });
       }
     }
   }, [viewMode, lensData]);
+
+  useEffect(() => {
+    const cy = cyRef.current;
+    if (!cy) return;
+    applySemanticZoom(cy, {
+      viewMode,
+      lensData,
+      selectedConceptId,
+      pinnedConceptIds,
+      topKNodeIds: topKRef.current
+    });
+  }, [elements, selectedConceptId, pinnedConceptIds, viewMode, lensData]);
 
   useEffect(() => {
     const el = containerRef.current;
@@ -817,9 +996,7 @@ export default function App() {
     () => new Set(["concepts", "sources", "evidence"])
   );
 
-  const [selectedEdgeTypes, setSelectedEdgeTypes] = useState<Set<EdgeType>>(
-    () => new Set(EdgeTypeSchema.options)
-  );
+  const [selectedEdgeTypes, setSelectedEdgeTypes] = useState<Set<EdgeType>>(getDefaultEdgeTypes);
 
   const [masteryOverlayEnabled, setMasteryOverlayEnabled] = useState(false);
 
@@ -865,6 +1042,13 @@ export default function App() {
 
   const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
   const [trainingPanelOpen, setTrainingPanelOpen] = useState(false);
+
+  const [lensRefreshToken, setLensRefreshToken] = useState(0);
+  const [edgeDraftState, setEdgeDraftState] = useState<EdgeDraftState>({ phase: "idle" });
+  const [lensEditError, setLensEditError] = useState<string | null>(null);
+  const [lensEditSaving, setLensEditSaving] = useState(false);
+  const [addConceptOpen, setAddConceptOpen] = useState(false);
+  const [addConceptTitle, setAddConceptTitle] = useState("");
 
   const [changesetHighlightConceptIds, setChangesetHighlightConceptIds] = useState<Set<string>>(
     () => new Set()
@@ -928,17 +1112,26 @@ export default function App() {
     }, 1400);
   }, []);
 
-  // Cmd+K command palette shortcut
+  const selectAndFocusConcept = useCallback((id: string) => {
+    selectConcept(id);
+    focusConceptInGraph(id);
+  }, [focusConceptInGraph]);
+
+  // Cmd+K command palette shortcut + Escape to cancel edge draft
   useEffect(() => {
     function handleKeyDown(e: KeyboardEvent) {
       if ((e.metaKey || e.ctrlKey) && e.key === "k") {
         e.preventDefault();
         setCommandPaletteOpen((prev) => !prev);
       }
+      if (e.key === "Escape" && edgeDraftState.phase !== "idle") {
+        e.preventDefault();
+        cancelEdgeDraft();
+      }
     }
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, []);
+  }, [edgeDraftState.phase]);
 
   const commandPaletteActions = useMemo(
     () => [
@@ -1018,7 +1211,7 @@ export default function App() {
     return () => {
       cancelled = true;
     };
-  }, [viewMode, selectedConceptId, lensRadius]);
+  }, [viewMode, selectedConceptId, lensRadius, lensRefreshToken]);
 
   useEffect(() => {
     const onPopState = () => {
@@ -1161,6 +1354,85 @@ export default function App() {
     setActiveRightTab("evidence");
   }
 
+  function cancelEdgeDraft() {
+    setEdgeDraftState({ phase: "idle" });
+    const cy = atlasCyRef.current;
+    if (cy) cy.nodes().removeClass("edgeDraftSource");
+  }
+
+  function handleAtlasConceptSelect(id: string) {
+    if (viewMode === "lens" && edgeDraftState.phase !== "idle") {
+      handleLensNodeTap(id);
+    } else {
+      selectConcept(id);
+    }
+  }
+
+  function handleLensNodeTap(id: string) {
+    const cy = atlasCyRef.current;
+    const node = cy?.$id(id);
+    const title = (node && !node.empty() ? node.data("label") : id) as string;
+
+    if (edgeDraftState.phase === "pickSource") {
+      setEdgeDraftState({ phase: "pickTarget", sourceId: id, sourceTitle: title });
+      if (cy) {
+        cy.nodes().removeClass("edgeDraftSource");
+        cy.$id(id).addClass("edgeDraftSource");
+      }
+    } else if (edgeDraftState.phase === "pickTarget") {
+      setEdgeDraftState({
+        phase: "pickType",
+        sourceId: edgeDraftState.sourceId,
+        targetId: id,
+        sourceTitle: edgeDraftState.sourceTitle,
+        targetTitle: title
+      });
+    }
+  }
+
+  async function handleEdgeTypeSelected(type: EdgeType) {
+    if (edgeDraftState.phase !== "pickType") return;
+    const { sourceId, targetId } = edgeDraftState;
+    setLensEditSaving(true);
+    setLensEditError(null);
+
+    try {
+      await postEdge({ fromConceptId: sourceId, toConceptId: targetId, type, evidenceChunkIds: [] });
+      await refreshGraph();
+      setLensRefreshToken((t) => t + 1);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Failed to create edge";
+      if (message.includes("EDGE_WOULD_CYCLE")) {
+        setLensEditError("Cannot create: would form a prerequisite cycle");
+      } else {
+        setLensEditError(message);
+      }
+    } finally {
+      setLensEditSaving(false);
+      cancelEdgeDraft();
+    }
+  }
+
+  async function handleAddConcept() {
+    const title = addConceptTitle.trim();
+    if (!title) return;
+    setLensEditSaving(true);
+    setLensEditError(null);
+
+    try {
+      const res = await postConcept({ title });
+      setAddConceptTitle("");
+      setAddConceptOpen(false);
+      await refreshGraph();
+      setLensRefreshToken((t) => t + 1);
+      selectConcept(res.concept.id);
+    } catch (err) {
+      setLensEditError(err instanceof Error ? err.message : "Failed to create concept");
+    } finally {
+      setLensEditSaving(false);
+    }
+  }
+
   function openSource(sourceId: string) {
     setSelectedSourceId(sourceId);
     setSelectedEdgeId(null);
@@ -1172,6 +1444,17 @@ export default function App() {
       const next = new Set(prev);
       if (next.has(edgeType)) next.delete(edgeType);
       else next.add(edgeType);
+      return next;
+    });
+  }
+
+  function toggleEdgeTypeCategory(category: EdgeTypeCategory) {
+    setSelectedEdgeTypes((prev) => {
+      const next = new Set(prev);
+      const allOn = category.types.every((t) => next.has(t));
+      for (const t of category.types) {
+        if (allOn) next.delete(t); else next.add(t);
+      }
       return next;
     });
   }
@@ -1498,7 +1781,7 @@ export default function App() {
                       key={n.id}
                       node={n}
                       selected={selectedConceptId === n.id}
-                      onSelect={selectConcept}
+                      onSelect={selectAndFocusConcept}
                     />
                   ))}
                 </ul>
@@ -1525,6 +1808,7 @@ export default function App() {
             <EdgeTypeFilter
               selected={selectedEdgeTypes}
               onToggle={toggleEdgeType}
+              onToggleCategory={toggleEdgeTypeCategory}
               disabled={edgeVisMode !== "filtered"}
             />
           </div>
@@ -1708,10 +1992,23 @@ export default function App() {
                     focusDepth={focusDepth}
                     viewMode={viewMode}
                     lensData={lensData}
-                    onSelectConcept={selectConcept}
+                    onSelectConcept={handleAtlasConceptSelect}
                     onSelectEdge={selectEdge}
                     onCyReady={handleCyReady}
                   />
+                {viewMode === "lens" && lensData && (
+                  <LensEditToolbar
+                    onAddConcept={() => {
+                      setAddConceptTitle("");
+                      setAddConceptOpen(true);
+                    }}
+                    edgeDraftState={edgeDraftState}
+                    onStartEdgeDraft={() => setEdgeDraftState({ phase: "pickSource" })}
+                    onCancelEdgeDraft={cancelEdgeDraft}
+                    error={lensEditError}
+                    saving={lensEditSaving}
+                  />
+                )}
               </div>
             </>
           )}
@@ -1786,7 +2083,7 @@ export default function App() {
               <ConceptWorkspace
                 concept={concept}
                 graph={graph}
-                onOpenConcept={selectConcept}
+                onOpenConcept={selectAndFocusConcept}
                 onShowContextPack={showContextPack}
                 onGraphUpdated={refreshGraph}
                 onOpenSource={openSource}
@@ -1829,7 +2126,7 @@ export default function App() {
               }
             />
           ) : activeRightTab === "review" ? (
-            <ReviewPanel graph={graph} onOpenConcept={selectConcept} />
+            <ReviewPanel graph={graph} onOpenConcept={selectAndFocusConcept} />
           ) : (
             <TutorPanel
               graph={graph}
@@ -1843,7 +2140,58 @@ export default function App() {
         open={commandPaletteOpen}
         onClose={() => setCommandPaletteOpen(false)}
         actions={commandPaletteActions}
+        concepts={graph?.nodes}
+        onSelectConcept={(conceptId) => {
+          selectConcept(conceptId);
+          setViewMode("lens");
+        }}
       />
+
+      <EdgeTypePicker
+        open={edgeDraftState.phase === "pickType"}
+        onSelect={handleEdgeTypeSelected}
+        onClose={cancelEdgeDraft}
+      />
+
+      {addConceptOpen ? (
+        <div className="modalOverlay" onClick={(e) => {
+          if (e.target === e.currentTarget) setAddConceptOpen(false);
+        }}>
+          <div className="modalContent" data-testid="add-concept-modal">
+            <h3>Add concept</h3>
+            <input
+              className="searchInput"
+              placeholder="Concept title..."
+              value={addConceptTitle}
+              onChange={(e) => setAddConceptTitle(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") void handleAddConcept();
+                if (e.key === "Escape") setAddConceptOpen(false);
+              }}
+              autoFocus
+              data-testid="add-concept-input"
+            />
+            <div className="buttonRow">
+              <button
+                type="button"
+                className="secondaryButton"
+                onClick={() => void handleAddConcept()}
+                disabled={!addConceptTitle.trim() || lensEditSaving}
+                data-testid="add-concept-submit"
+              >
+                {lensEditSaving ? "Creating..." : "Create"}
+              </button>
+              <button
+                type="button"
+                className="ghostButton"
+                onClick={() => setAddConceptOpen(false)}
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
 
       <TrainingPanel
         open={trainingPanelOpen}
