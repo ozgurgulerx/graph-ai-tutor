@@ -57,7 +57,12 @@ import {
   GetConceptNoteResponseSchema,
   PostConceptNoteRequestSchema,
   PostConceptNoteResponseSchema,
-  GetConceptBacklinksResponseSchema
+  GetConceptBacklinksResponseSchema,
+  PostEdgeRequestSchema,
+  PostEdgeResponseSchema,
+  PostGenerateConceptContextResponseSchema,
+  PostUpdateConceptContextRequestSchema,
+  PostUpdateConceptContextResponseSchema
 } from "@graph-ai-tutor/shared";
 import type {
   GetChangesetResponse,
@@ -115,7 +120,11 @@ import type {
   GetConceptNoteResponse,
   PostConceptNoteRequest,
   PostConceptNoteResponse,
-  GetConceptBacklinksResponse
+  GetConceptBacklinksResponse,
+  PostEdgeRequest,
+  PostEdgeResponse,
+  PostGenerateConceptContextResponse,
+  PostUpdateConceptContextResponse
 } from "@graph-ai-tutor/shared";
 
 const API_BASE = "/api";
@@ -556,6 +565,41 @@ export function getConceptBacklinks(conceptId: string): Promise<GetConceptBackli
   return requestJson(
     GetConceptBacklinksResponseSchema,
     `/concept/${encodeURIComponent(conceptId)}/backlinks`
+  );
+}
+
+export function postEdge(input: PostEdgeRequest): Promise<PostEdgeResponse> {
+  const parsed = PostEdgeRequestSchema.parse(input);
+  return requestJson(PostEdgeResponseSchema, "/edge", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(parsed)
+  });
+}
+
+export function postGenerateContext(
+  conceptId: string
+): Promise<PostGenerateConceptContextResponse> {
+  return requestJson(
+    PostGenerateConceptContextResponseSchema,
+    `/concept/${encodeURIComponent(conceptId)}/generate-context`,
+    { method: "POST" }
+  );
+}
+
+export function postUpdateContext(
+  conceptId: string,
+  context: string
+): Promise<PostUpdateConceptContextResponse> {
+  const parsed = PostUpdateConceptContextRequestSchema.parse({ context });
+  return requestJson(
+    PostUpdateConceptContextResponseSchema,
+    `/concept/${encodeURIComponent(conceptId)}/context`,
+    {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(parsed)
+    }
   );
 }
 

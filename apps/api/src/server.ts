@@ -79,10 +79,14 @@ import {
   TrainingSessionParamsSchema,
   TrainingSessionItemParamsSchema,
   computeGraphLens,
+  wouldCreatePrereqCycle,
   GetConceptNoteResponseSchema,
   PostConceptNoteRequestSchema,
   PostConceptNoteResponseSchema,
-  GetConceptBacklinksResponseSchema
+  GetConceptBacklinksResponseSchema,
+  PostGenerateConceptContextResponseSchema,
+  PostUpdateConceptContextRequestSchema,
+  PostUpdateConceptContextResponseSchema
 } from "@graph-ai-tutor/shared";
 
 import { createOpenAiCaptureLlm, runCaptureJob, type CaptureLlm } from "./capture";
@@ -92,7 +96,8 @@ import {
   gradeTrainingAnswer,
   type TrainingLlm
 } from "./training";
-import { generateContextPack } from "./context-pack";
+import { collectConceptIds, generateContextPack } from "./context-pack";
+import { createOpenAIResponsesClient, resolveModel, runStructuredOutput } from "@graph-ai-tutor/llm";
 import { createOpenAiDistillLlm, runDistillJob, type DistillLlm } from "./distill";
 import { createOpenAiExtractionLlm, runExtractionJob, type ExtractionLlm } from "./extraction";
 import { createOpenAiQuizLlm, generateQuizSpecs, type QuizCandidateConcept, type QuizLlm } from "./quizzes";
@@ -737,6 +742,148 @@ function registerApiRoutes(
     }
   });
 
+  // --- Concept Context (LLM-generated) ---
+
+  app.post("/concept/:id/generate-context", async (req, reply) => {
+    const params = parseOr400(reply, GetConceptParamsSchema, req.params);
+    if (!params) return;
+
+    const conceptId = await resolveConceptId(deps.repos, params.id);
+    if (!conceptId) {
+      sendError(reply, 404, "NOT_FOUND", "Concept not found", { id: params.id });
+      return;
+    }
+
+    try {
+      // Collect 1-hop subgraph
+      const conceptIds = await collectConceptIds(deps.repos, {
+        conceptId,
+        radius: "1-hop",
+        includeCode: false,
+        includeQuiz: false
+      });
+
+      const concepts = (
+        await Promise.all(conceptIds.map((id) => deps.repos.concept.getById(id)))
+      ).filter((c) => c !== null);
+
+      const relevantEdges =
+        conceptIds.length > 0
+          ? await deps.repos.edge.listSummariesByConceptIds(conceptIds, 5000)
+          : [];
+      const conceptIdSet = new Set(conceptIds);
+      const internalEdges = relevantEdges.filter(
+        (e) => conceptIdSet.has(e.fromConceptId) && conceptIdSet.has(e.toConceptId)
+      );
+
+      const center = concepts.find((c) => c.id === conceptId);
+      if (!center) {
+        sendError(reply, 404, "NOT_FOUND", "Concept not found", { id: conceptId });
+        return;
+      }
+
+      const titleById = new Map(concepts.map((c) => [c.id, c.title]));
+
+      // Build prompt
+      const neighborLines: string[] = [];
+      for (const c of concepts) {
+        if (c.id === conceptId) continue;
+        const outEdges = internalEdges
+          .filter((e) => e.fromConceptId === c.id || e.toConceptId === c.id)
+          .map((e) => {
+            const from = titleById.get(e.fromConceptId) ?? e.fromConceptId;
+            const to = titleById.get(e.toConceptId) ?? e.toConceptId;
+            return `${from} -[${e.type}]-> ${to}`;
+          });
+        neighborLines.push(
+          `- ${c.title}${c.l0 ? `: ${c.l0}` : ""}${outEdges.length > 0 ? `\n  Edges: ${outEdges.join("; ")}` : ""}`
+        );
+      }
+
+      const prompt = [
+        "You are a knowledge graph tutor. Given a concept and its subgraph neighborhood, synthesize a rich context that explains what the concept is, how it relates to its neighbors, and why it matters.",
+        "",
+        `Concept: ${center.title}`,
+        center.l0 ? `Definition: ${center.l0}` : "",
+        center.l1.length > 0 ? `Key points:\n${center.l1.map((b) => `- ${b}`).join("\n")}` : "",
+        "",
+        neighborLines.length > 0
+          ? `Neighbors:\n${neighborLines.join("\n")}`
+          : "(No neighbors)",
+        "",
+        "Write 2-4 paragraphs synthesizing this concept in its graph context. Be specific and reference the neighboring concepts by name."
+      ]
+        .filter(Boolean)
+        .join("\n");
+
+      const client = createOpenAIResponsesClient();
+      const model = resolveModel("mini");
+
+      const { data } = await runStructuredOutput<{ context: string }>(client, {
+        model,
+        input: prompt,
+        spec: {
+          name: "concept_context",
+          schema: {
+            type: "object",
+            properties: {
+              context: { type: "string" }
+            },
+            required: ["context"],
+            additionalProperties: false
+          }
+        }
+      });
+
+      const updated = await deps.repos.concept.updateContext(conceptId, data.context);
+      if (!updated) {
+        sendError(reply, 404, "NOT_FOUND", "Concept not found after update", { id: conceptId });
+        return;
+      }
+
+      const validated = parseOr400(reply, PostGenerateConceptContextResponseSchema, {
+        concept: updated
+      });
+      if (!validated) return;
+      return validated;
+    } catch (err) {
+      sendError(
+        reply,
+        500,
+        "GENERATE_CONTEXT_FAILED",
+        err instanceof Error ? err.message : "Context generation failed"
+      );
+      app.log.error(err);
+      return;
+    }
+  });
+
+  app.post("/concept/:id/context", async (req, reply) => {
+    const params = parseOr400(reply, GetConceptParamsSchema, req.params);
+    if (!params) return;
+
+    const body = parseOr400(reply, PostUpdateConceptContextRequestSchema, req.body);
+    if (!body) return;
+
+    const conceptId = await resolveConceptId(deps.repos, params.id);
+    if (!conceptId) {
+      sendError(reply, 404, "NOT_FOUND", "Concept not found", { id: params.id });
+      return;
+    }
+
+    const updated = await deps.repos.concept.updateContext(conceptId, body.context);
+    if (!updated) {
+      sendError(reply, 404, "NOT_FOUND", "Concept not found", { id: conceptId });
+      return;
+    }
+
+    const validated = parseOr400(reply, PostUpdateConceptContextResponseSchema, {
+      concept: updated
+    });
+    if (!validated) return;
+    return validated;
+  });
+
   app.post("/concept/:id/source", async (req, reply) => {
     const params = parseOr400(reply, GetConceptParamsSchema, req.params);
     if (!params) return;
@@ -1339,6 +1486,20 @@ function registerApiRoutes(
       if (fromId === toId) {
         sendError(reply, 400, "EDGE_SELF_LOOP", "fromConceptId and toConceptId must differ");
         return;
+      }
+
+      if (body.type === "PREREQUISITE_OF") {
+        const allEdges = await deps.repos.edge.listSummaries();
+        const check = wouldCreatePrereqCycle({
+          fromConceptId: fromId,
+          toConceptId: toId,
+          existingEdges: allEdges
+        });
+        if (check.wouldCycle) {
+          sendError(reply, 409, "EDGE_WOULD_CYCLE",
+            "Adding this edge would create a cycle in the prerequisite chain");
+          return;
+        }
       }
 
       const edge = await deps.repos.edge.create({

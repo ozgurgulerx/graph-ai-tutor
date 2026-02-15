@@ -31,6 +31,7 @@ describe("App", () => {
                 l1: [],
                 l2: [],
                 module: "inference",
+                noteSourceId: null,
                 createdAt: 0,
                 updatedAt: 1
               }
@@ -46,6 +47,30 @@ describe("App", () => {
         }
         if (url.endsWith(`/api/concept/${kvId}/draft-revisions`) && method === "GET") {
           return new Response(JSON.stringify({ revisions: [] }), {
+            status: 200,
+            headers: { "content-type": "application/json" }
+          });
+        }
+        if (url.endsWith(`/api/concept/${kvId}/merges`) && method === "GET") {
+          return new Response(JSON.stringify({ merges: [] }), {
+            status: 200,
+            headers: { "content-type": "application/json" }
+          });
+        }
+        if (url.endsWith(`/api/concept/${kvId}/quizzes`) && method === "GET") {
+          return new Response(JSON.stringify({ quizzes: [] }), {
+            status: 200,
+            headers: { "content-type": "application/json" }
+          });
+        }
+        if (url.endsWith(`/api/concept/${kvId}/note`) && method === "GET") {
+          return new Response(JSON.stringify({ source: null, content: "" }), {
+            status: 200,
+            headers: { "content-type": "application/json" }
+          });
+        }
+        if (url.endsWith(`/api/concept/${kvId}/backlinks`) && method === "GET") {
+          return new Response(JSON.stringify({ concepts: [] }), {
             status: 200,
             headers: { "content-type": "application/json" }
           });
@@ -93,6 +118,9 @@ describe("App", () => {
 
     fireEvent.click(await screen.findByRole("button", { name: /kv cache/i }));
     expect(await screen.findByTestId("concept-title")).toHaveTextContent(/kv cache/i);
+
+    // Navigate to Sources tab (sub-tabs feature)
+    fireEvent.click(await screen.findByTestId("tab-sources"));
 
     fireEvent.change(screen.getByLabelText(/source url/i), {
       target: { value: "https://example.com/docs" }

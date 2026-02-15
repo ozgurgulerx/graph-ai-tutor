@@ -1,0 +1,1 @@
+ALTER TABLE concept ADD COLUMN IF NOT EXISTS context text;

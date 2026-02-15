@@ -1,3 +1,5 @@
+import { DefaultAzureCredential, getBearerTokenProvider } from "@azure/identity";
+
 export type FetchLike = (
   input: string,
   init?: {
@@ -60,9 +62,9 @@ function getErrorMessage(payload: unknown): string | undefined {
 // ---------------------------------------------------------------------------
 
 type AzureConfig = {
-  apiKey: string;
   endpoint: string;
   apiVersion: string;
+  getToken: () => Promise<string>;
 };
 
 /**
@@ -142,10 +144,11 @@ function createAzureChatCompletionsClient(
         `${endpoint}/openai/deployments/${deployment}/chat/completions` +
         `?api-version=${azure.apiVersion}`;
 
+      const token = await azure.getToken();
       const res = await fetchFn(url, {
         method: "POST",
         headers: {
-          "api-key": azure.apiKey,
+          Authorization: `Bearer ${token}`,
           "Content-Type": "application/json"
         },
         body: JSON.stringify(toAzureChatBody(req)),
@@ -231,16 +234,21 @@ export function createOpenAIResponsesClient(
     };
   }
 
-  // Azure OpenAI fallback
-  const azureKey = env.AZURE_OPENAI_API_KEY;
+  // Azure OpenAI fallback — uses Entra ID (DefaultAzureCredential)
   const azureEndpoint = env.AZURE_OPENAI_ENDPOINT;
 
-  if (azureKey && azureEndpoint) {
+  if (azureEndpoint) {
+    const credential = new DefaultAzureCredential();
+    const getToken = getBearerTokenProvider(
+      credential,
+      "https://cognitiveservices.azure.com/.default"
+    );
+
     return createAzureChatCompletionsClient(
       {
-        apiKey: azureKey,
         endpoint: azureEndpoint,
-        apiVersion: env.AZURE_OPENAI_API_VERSION || DEFAULT_AZURE_API_VERSION
+        apiVersion: env.AZURE_OPENAI_API_VERSION || DEFAULT_AZURE_API_VERSION,
+        getToken
       },
       fetchFn
     );
@@ -248,6 +256,6 @@ export function createOpenAIResponsesClient(
 
   throw new Error(
     "No LLM credentials found. Set OPENAI_API_KEY for OpenAI, " +
-    "or AZURE_OPENAI_API_KEY + AZURE_OPENAI_ENDPOINT for Azure OpenAI."
+    "or AZURE_OPENAI_ENDPOINT for Azure OpenAI (uses Entra ID auth)."
   );
 }

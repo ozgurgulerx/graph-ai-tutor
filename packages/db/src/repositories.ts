@@ -36,6 +36,7 @@ export type Concept = {
   l2: string[];
   module: string | null;
   noteSourceId: string | null;
+  context: string | null;
   masteryScore: number;
   createdAt: number;
   updatedAt: number;
@@ -632,13 +633,14 @@ export function createRepositories(pool: PgPoolLike) {
           l2: string[] | null;
           module: string | null;
           note_source_id: string | null;
+          context: string | null;
           mastery_score: unknown;
           created_at: unknown;
           updated_at: unknown;
         }>(
           `INSERT INTO concept (id, title, kind, l0, l1, l2, module, note_source_id, created_at, updated_at)
            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
-           RETURNING id, title, kind, l0, l1, l2, module, note_source_id, mastery_score, created_at, updated_at`,
+           RETURNING id, title, kind, l0, l1, l2, module, note_source_id, context, mastery_score, created_at, updated_at`,
           [id, input.title, kind, input.l0 ?? null, l1, l2, input.module ?? null, input.noteSourceId ?? null, now, now]
         );
         const row = res.rows[0];
@@ -652,6 +654,7 @@ export function createRepositories(pool: PgPoolLike) {
           l2: toStringArray(row.l2),
           module: row.module,
           noteSourceId: row.note_source_id,
+          context: row.context,
           masteryScore: toNumber(row.mastery_score),
           createdAt: toNumber(row.created_at),
           updatedAt: toNumber(row.updated_at)
@@ -668,11 +671,12 @@ export function createRepositories(pool: PgPoolLike) {
           l2: string[] | null;
           module: string | null;
           note_source_id: string | null;
+          context: string | null;
           mastery_score: unknown;
           created_at: unknown;
           updated_at: unknown;
         }>(
-          `SELECT id, title, kind, l0, l1, l2, module, note_source_id, mastery_score, created_at, updated_at
+          `SELECT id, title, kind, l0, l1, l2, module, note_source_id, context, mastery_score, created_at, updated_at
            FROM concept
            WHERE id = $1`,
           [id]
@@ -688,6 +692,7 @@ export function createRepositories(pool: PgPoolLike) {
           l2: toStringArray(row.l2),
           module: row.module,
           noteSourceId: row.note_source_id,
+          context: row.context,
           masteryScore: toNumber(row.mastery_score),
           createdAt: toNumber(row.created_at),
           updatedAt: toNumber(row.updated_at)
@@ -742,6 +747,44 @@ export function createRepositories(pool: PgPoolLike) {
 
       async delete(id: string): Promise<void> {
         await pool.query("DELETE FROM concept WHERE id = $1", [id]);
+      },
+
+      async updateContext(id: string, context: string): Promise<Concept | null> {
+        const now = Date.now();
+        const res = await pool.query<{
+          id: string;
+          title: string;
+          kind: NodeKind;
+          l0: string | null;
+          l1: string[] | null;
+          l2: string[] | null;
+          module: string | null;
+          note_source_id: string | null;
+          context: string | null;
+          mastery_score: unknown;
+          created_at: unknown;
+          updated_at: unknown;
+        }>(
+          `UPDATE concept SET context = $1, updated_at = $2 WHERE id = $3
+           RETURNING id, title, kind, l0, l1, l2, module, note_source_id, context, mastery_score, created_at, updated_at`,
+          [context, now, id]
+        );
+        const row = res.rows[0];
+        if (!row) return null;
+        return {
+          id: row.id,
+          title: row.title,
+          kind: row.kind,
+          l0: row.l0,
+          l1: toStringArray(row.l1),
+          l2: toStringArray(row.l2),
+          module: row.module,
+          noteSourceId: row.note_source_id,
+          context: row.context,
+          masteryScore: toNumber(row.mastery_score),
+          createdAt: toNumber(row.created_at),
+          updatedAt: toNumber(row.updated_at)
+        };
       },
 
       async count(): Promise<number> {
@@ -913,23 +956,24 @@ export function createRepositories(pool: PgPoolLike) {
       },
 
       async listBacklinkConcepts(title: string): Promise<ConceptSummary[]> {
-        const pattern = `%[[${title}]]%`;
+        // Fetch all concepts that have notes, along with note content
         const res = await pool.query<{
           id: string;
           title: string;
           kind: NodeKind;
           module: string | null;
           mastery_score: unknown;
+          content: string;
         }>(
-          `SELECT c.id, c.title, c.kind, c.module, c.mastery_score
+          `SELECT c.id, c.title, c.kind, c.module, c.mastery_score, sc.content
            FROM concept c
            JOIN source_content sc ON sc.source_id = c.note_source_id
-           WHERE sc.content LIKE $1
-             AND c.note_source_id IS NOT NULL
-           ORDER BY c.title ASC`,
-          [pattern]
+           WHERE c.note_source_id IS NOT NULL
+           ORDER BY c.title ASC`
         );
-        return res.rows.map((r) => ({
+        const needle = `[[${title}]]`;
+        const filtered = res.rows.filter((r) => r.content.includes(needle));
+        return filtered.map((r) => ({
           id: r.id,
           title: r.title,
           kind: r.kind,
@@ -1263,11 +1307,13 @@ export function createRepositories(pool: PgPoolLike) {
             l1: string[] | null;
             l2: string[] | null;
             module: string | null;
+            note_source_id: string | null;
+            context: string | null;
             mastery_score: unknown;
             created_at: unknown;
             updated_at: unknown;
           }>(
-            `SELECT id, title, kind, l0, l1, l2, module, mastery_score, created_at, updated_at
+            `SELECT id, title, kind, l0, l1, l2, module, note_source_id, context, mastery_score, created_at, updated_at
              FROM concept
              WHERE id IN (${placeholders})`,
             duplicateIds
@@ -1301,6 +1347,8 @@ export function createRepositories(pool: PgPoolLike) {
               l1: toStringArray(r.l1),
               l2: toStringArray(r.l2),
               module: r.module,
+              noteSourceId: r.note_source_id,
+              context: r.context,
               masteryScore: toNumber(r.mastery_score),
               createdAt: toNumber(r.created_at),
               updatedAt: toNumber(r.updated_at)
@@ -3380,6 +3428,8 @@ export function createRepositories(pool: PgPoolLike) {
             l1: string[] | null;
             l2: string[] | null;
             module: string | null;
+            note_source_id: string | null;
+            context: string | null;
             mastery_score: unknown;
             created_at: unknown;
             updated_at: unknown;
@@ -3387,7 +3437,7 @@ export function createRepositories(pool: PgPoolLike) {
             `UPDATE concept
              SET l1 = $1, l2 = $2, updated_at = $3
              WHERE id = $4
-             RETURNING id, title, kind, l0, l1, l2, module, mastery_score, created_at, updated_at`,
+             RETURNING id, title, kind, l0, l1, l2, module, note_source_id, context, mastery_score, created_at, updated_at`,
             [revision.after.l1, revision.after.l2, now, revision.conceptId]
           );
           const updatedRow = updatedRes.rows[0];
@@ -3425,6 +3475,8 @@ export function createRepositories(pool: PgPoolLike) {
               l1: toStringArray(updatedRow.l1),
               l2: toStringArray(updatedRow.l2),
               module: updatedRow.module,
+              noteSourceId: updatedRow.note_source_id,
+              context: updatedRow.context,
               masteryScore: toNumber(updatedRow.mastery_score),
               createdAt: toNumber(updatedRow.created_at),
               updatedAt: toNumber(updatedRow.updated_at)
@@ -3503,6 +3555,8 @@ export function createRepositories(pool: PgPoolLike) {
             l1: string[] | null;
             l2: string[] | null;
             module: string | null;
+            note_source_id: string | null;
+            context: string | null;
             mastery_score: unknown;
             created_at: unknown;
             updated_at: unknown;
@@ -3510,7 +3564,7 @@ export function createRepositories(pool: PgPoolLike) {
             `UPDATE concept
              SET l1 = $1, l2 = $2, updated_at = $3
              WHERE id = $4
-             RETURNING id, title, kind, l0, l1, l2, module, mastery_score, created_at, updated_at`,
+             RETURNING id, title, kind, l0, l1, l2, module, note_source_id, context, mastery_score, created_at, updated_at`,
             [target.before.l1, target.before.l2, now, target.conceptId]
           );
           const updatedRow = updatedRes.rows[0];
@@ -3564,6 +3618,8 @@ export function createRepositories(pool: PgPoolLike) {
               l1: toStringArray(updatedRow.l1),
               l2: toStringArray(updatedRow.l2),
               module: updatedRow.module,
+              noteSourceId: updatedRow.note_source_id,
+              context: updatedRow.context,
               masteryScore: toNumber(updatedRow.mastery_score),
               createdAt: toNumber(updatedRow.created_at),
               updatedAt: toNumber(updatedRow.updated_at)

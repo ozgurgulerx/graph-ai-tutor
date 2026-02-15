@@ -73,6 +73,7 @@ export const ConceptSchema = z.object({
   l2: z.array(z.string()),
   module: z.string().nullable(),
   noteSourceId: z.string().nullable().optional().default(null),
+  context: z.string().nullable().optional().default(null),
   masteryScore: z.number().optional().default(0),
   createdAt: z.number(),
   updatedAt: z.number()
@@ -1185,3 +1186,35 @@ export const GetConceptBacklinksResponseSchema = z.object({
 });
 
 export type GetConceptBacklinksResponse = z.infer<typeof GetConceptBacklinksResponseSchema>;
+
+// --- Concept Context ---
+
+export const PostGenerateConceptContextResponseSchema = z
+  .object({
+    concept: ConceptSchema
+  })
+  .strict();
+
+export type PostGenerateConceptContextResponse = z.infer<
+  typeof PostGenerateConceptContextResponseSchema
+>;
+
+export const PostUpdateConceptContextRequestSchema = z
+  .object({
+    context: z.string()
+  })
+  .strict();
+
+export type PostUpdateConceptContextRequest = z.infer<
+  typeof PostUpdateConceptContextRequestSchema
+>;
+
+export const PostUpdateConceptContextResponseSchema = z
+  .object({
+    concept: ConceptSchema
+  })
+  .strict();
+
+export type PostUpdateConceptContextResponse = z.infer<
+  typeof PostUpdateConceptContextResponseSchema
+>;

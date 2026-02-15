@@ -45,7 +45,10 @@ import {
   PostCompleteTrainingSessionResponseSchema,
   SearchExactResponseSchema,
   SearchResponseSchema,
-  SearchUniversalResponseSchema
+  SearchUniversalResponseSchema,
+  GetConceptNoteResponseSchema,
+  PostConceptNoteResponseSchema,
+  GetConceptBacklinksResponseSchema
 } from "@graph-ai-tutor/shared";
 
 import type { CaptureLlm } from "./capture";
@@ -426,6 +429,119 @@ describe("API v1", () => {
     }
   });
 
+  it("GET /concept/:id/note returns empty when no note exists", async () => {
+    const { app, db } = await createTestApp();
+    try {
+      const concept = await db.concept.create({ title: "Test" });
+
+      const res = await app.inject({
+        method: "GET",
+        url: `/api/concept/${concept.id}/note`
+      });
+      expect(res.statusCode).toBe(200);
+      const parsed = GetConceptNoteResponseSchema.parse(json(res));
+      expect(parsed.source).toBeNull();
+      expect(parsed.content).toBe("");
+    } finally {
+      await app.close();
+      await db.close();
+    }
+  });
+
+  it("POST /concept/:id/note creates a note and GET returns it", async () => {
+    const prev = process.env.GRAPH_AI_TUTOR_VAULT_DIR;
+    const dir = await fs.mkdtemp(path.join(os.tmpdir(), "graph-ai-tutor-vault-"));
+    process.env.GRAPH_AI_TUTOR_VAULT_DIR = dir;
+
+    const { app, db } = await createTestApp();
+    try {
+      const concept = await db.concept.create({ title: "Attention" });
+
+      const createRes = await app.inject({
+        method: "POST",
+        url: `/api/concept/${concept.id}/note`,
+        headers: { "content-type": "application/json" },
+        payload: JSON.stringify({})
+      });
+      expect(createRes.statusCode).toBe(200);
+      const created = PostConceptNoteResponseSchema.parse(json(createRes));
+      expect(created.source.url).toMatch(/^vault:\/\/notes\//);
+
+      // Idempotent: second call returns same source
+      const secondRes = await app.inject({
+        method: "POST",
+        url: `/api/concept/${concept.id}/note`,
+        headers: { "content-type": "application/json" },
+        payload: JSON.stringify({})
+      });
+      expect(secondRes.statusCode).toBe(200);
+      const second = PostConceptNoteResponseSchema.parse(json(secondRes));
+      expect(second.source.id).toBe(created.source.id);
+
+      // GET returns the note content
+      const getRes = await app.inject({
+        method: "GET",
+        url: `/api/concept/${concept.id}/note`
+      });
+      expect(getRes.statusCode).toBe(200);
+      const fetched = GetConceptNoteResponseSchema.parse(json(getRes));
+      expect(fetched.source).not.toBeNull();
+      expect(fetched.content).toMatch(/^# Attention/);
+    } finally {
+      await app.close();
+      await db.close();
+      await fs.rm(dir, { recursive: true, force: true });
+      if (typeof prev === "undefined") delete process.env.GRAPH_AI_TUTOR_VAULT_DIR;
+      else process.env.GRAPH_AI_TUTOR_VAULT_DIR = prev;
+    }
+  });
+
+  it("GET /concept/:id/backlinks returns concepts mentioning this one", async () => {
+    const prev = process.env.GRAPH_AI_TUTOR_VAULT_DIR;
+    const dir = await fs.mkdtemp(path.join(os.tmpdir(), "graph-ai-tutor-vault-"));
+    process.env.GRAPH_AI_TUTOR_VAULT_DIR = dir;
+
+    const { app, db } = await createTestApp();
+    try {
+      const conceptA = await db.concept.create({ title: "Attention" });
+      const conceptB = await db.concept.create({ title: "Transformer" });
+
+      // Create a note for B that mentions A
+      const noteRes = await app.inject({
+        method: "POST",
+        url: `/api/concept/${conceptB.id}/note`,
+        headers: { "content-type": "application/json" },
+        payload: JSON.stringify({})
+      });
+      expect(noteRes.statusCode).toBe(200);
+      const note = PostConceptNoteResponseSchema.parse(json(noteRes));
+
+      // Write content with wiki-link to A
+      const writeRes = await app.inject({
+        method: "POST",
+        url: `/api/source/${note.source.id}/content`,
+        headers: { "content-type": "application/json" },
+        payload: JSON.stringify({ content: "# Transformer\n\nUses [[Attention]] mechanism." })
+      });
+      expect(writeRes.statusCode).toBe(200);
+
+      // Now get backlinks for A
+      const backlinksRes = await app.inject({
+        method: "GET",
+        url: `/api/concept/${conceptA.id}/backlinks`
+      });
+      expect(backlinksRes.statusCode).toBe(200);
+      const backlinks = GetConceptBacklinksResponseSchema.parse(json(backlinksRes));
+      expect(backlinks.concepts.map((c) => c.id)).toContain(conceptB.id);
+    } finally {
+      await app.close();
+      await db.close();
+      await fs.rm(dir, { recursive: true, force: true });
+      if (typeof prev === "undefined") delete process.env.GRAPH_AI_TUTOR_VAULT_DIR;
+      else process.env.GRAPH_AI_TUTOR_VAULT_DIR = prev;
+    }
+  });
+
   it("GET/POST /source/:id/content reads/writes vault content and reindexes chunks", async () => {
     const prev = process.env.GRAPH_AI_TUTOR_VAULT_DIR;
     const dir = await fs.mkdtemp(path.join(os.tmpdir(), "graph-ai-tutor-vault-"));
@@ -595,6 +711,95 @@ describe("API v1", () => {
       expect(parsed.edge.toConceptId).toBe(b.id);
       expect(parsed.edge.type).toBe("PREREQUISITE_OF");
       expect(parsed.edge.evidenceChunkIds).toEqual([chunk.id]);
+    } finally {
+      await app.close();
+      await db.close();
+    }
+  });
+
+  it("POST /edge returns 409 when PREREQUISITE_OF would create a cycle", async () => {
+    const { app, db } = await createTestApp();
+    try {
+      const a = await db.concept.create({ title: "A" });
+      const b = await db.concept.create({ title: "B" });
+      const c = await db.concept.create({ title: "C" });
+
+      // A → B → C (PREREQUISITE_OF chain)
+      await db.edge.create({ fromConceptId: a.id, toConceptId: b.id, type: "PREREQUISITE_OF" });
+      await db.edge.create({ fromConceptId: b.id, toConceptId: c.id, type: "PREREQUISITE_OF" });
+
+      // Adding C → A would create a cycle
+      const res = await app.inject({
+        method: "POST",
+        url: "/api/edge",
+        headers: { "content-type": "application/json" },
+        payload: JSON.stringify({
+          fromConceptId: c.id,
+          toConceptId: a.id,
+          type: "PREREQUISITE_OF"
+        })
+      });
+      expect(res.statusCode).toBe(409);
+      const body = ApiErrorSchema.parse(json(res));
+      expect(body.error.code).toBe("EDGE_WOULD_CYCLE");
+    } finally {
+      await app.close();
+      await db.close();
+    }
+  });
+
+  it("POST /edge allows non-cyclic PREREQUISITE_OF edge", async () => {
+    const { app, db } = await createTestApp();
+    try {
+      const a = await db.concept.create({ title: "A" });
+      const b = await db.concept.create({ title: "B" });
+      const c = await db.concept.create({ title: "C" });
+
+      await db.edge.create({ fromConceptId: a.id, toConceptId: b.id, type: "PREREQUISITE_OF" });
+
+      // B → C should be fine (no cycle)
+      const res = await app.inject({
+        method: "POST",
+        url: "/api/edge",
+        headers: { "content-type": "application/json" },
+        payload: JSON.stringify({
+          fromConceptId: b.id,
+          toConceptId: c.id,
+          type: "PREREQUISITE_OF"
+        })
+      });
+      expect(res.statusCode).toBe(200);
+      const parsed = PostEdgeResponseSchema.parse(json(res));
+      expect(parsed.edge.type).toBe("PREREQUISITE_OF");
+    } finally {
+      await app.close();
+      await db.close();
+    }
+  });
+
+  it("POST /edge skips cycle check for non-PREREQUISITE_OF types", async () => {
+    const { app, db } = await createTestApp();
+    try {
+      const a = await db.concept.create({ title: "A" });
+      const b = await db.concept.create({ title: "B" });
+
+      // A → B as PREREQUISITE_OF
+      await db.edge.create({ fromConceptId: a.id, toConceptId: b.id, type: "PREREQUISITE_OF" });
+
+      // B → A as USED_IN should be allowed (cycle check only for PREREQUISITE_OF)
+      const res = await app.inject({
+        method: "POST",
+        url: "/api/edge",
+        headers: { "content-type": "application/json" },
+        payload: JSON.stringify({
+          fromConceptId: b.id,
+          toConceptId: a.id,
+          type: "USED_IN"
+        })
+      });
+      expect(res.statusCode).toBe(200);
+      const parsed = PostEdgeResponseSchema.parse(json(res));
+      expect(parsed.edge.type).toBe("USED_IN");
     } finally {
       await app.close();
       await db.close();

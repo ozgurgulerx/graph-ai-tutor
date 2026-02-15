@@ -27,8 +27,13 @@ import {
   postDraftRevisionRevert,
   postGenerateConceptQuizzes,
   postContextPack,
+  postGenerateContext,
+  postUpdateContext,
 } from "./api/client";
 import { LearningPathSection } from "./LearningPathSection";
+import { ConceptNoteSection } from "./ConceptNoteSection";
+
+type ConceptTab = "summary" | "note" | "sources" | "quizzes";
 
 type SaveInput = {
   id: string;
@@ -50,6 +55,8 @@ export function ConceptWorkspace(props: {
 }) {
   const concept = props.concept;
 
+  const [activeTab, setActiveTab] = useState<ConceptTab>("summary");
+
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
@@ -59,6 +66,7 @@ export function ConceptWorkspace(props: {
   const [draftL2, setDraftL2] = useState(concept.l2.join("\n"));
 
   useEffect(() => {
+    setActiveTab("summary");
     setEditing(false);
     setSaving(false);
     setSaveError(null);
@@ -351,6 +359,52 @@ export function ConceptWorkspace(props: {
   const [mergeActionLoading, setMergeActionLoading] = useState(false);
   const [mergeError, setMergeError] = useState<string | null>(null);
 
+  // LLM concept context state
+  const [contextGenerating, setContextGenerating] = useState(false);
+  const [contextError, setContextError] = useState<string | null>(null);
+  const [contextEditing, setContextEditing] = useState(false);
+  const [contextDraft, setContextDraft] = useState("");
+  const [contextSaving, setContextSaving] = useState(false);
+
+  useEffect(() => {
+    setContextEditing(false);
+    setContextError(null);
+    setContextGenerating(false);
+    setContextSaving(false);
+  }, [concept.id]);
+
+  async function handleGenerateContext() {
+    setContextGenerating(true);
+    setContextError(null);
+    try {
+      const res = await postGenerateContext(concept.id);
+      props.onConceptUpdated(res.concept);
+    } catch (err) {
+      setContextError(err instanceof Error ? err.message : "Failed to generate context");
+    } finally {
+      setContextGenerating(false);
+    }
+  }
+
+  function startEditContext() {
+    setContextDraft(concept.context ?? "");
+    setContextEditing(true);
+  }
+
+  async function saveContext() {
+    setContextSaving(true);
+    setContextError(null);
+    try {
+      const res = await postUpdateContext(concept.id, contextDraft);
+      props.onConceptUpdated(res.concept);
+      setContextEditing(false);
+    } catch (err) {
+      setContextError(err instanceof Error ? err.message : "Failed to save context");
+    } finally {
+      setContextSaving(false);
+    }
+  }
+
   // Context pack state
   const [contextPackRadius, setContextPackRadius] = useState<ContextPackRadius>("1-hop");
   const [contextPackIncludeQuiz, setContextPackIncludeQuiz] = useState(false);
@@ -511,12 +565,28 @@ export function ConceptWorkspace(props: {
         </div>
       </div>
 
+      <div className="conceptSubTabs" data-testid="concept-sub-tabs">
+        {(["summary", "note", "sources", "quizzes"] as const).map((tab) => (
+          <button
+            key={tab}
+            type="button"
+            className={`tab${activeTab === tab ? " tabActive" : ""}`}
+            onClick={() => setActiveTab(tab)}
+            data-testid={`tab-${tab}`}
+          >
+            {tab.charAt(0).toUpperCase() + tab.slice(1)}
+          </button>
+        ))}
+      </div>
+
       {saveError ? (
         <p role="alert" className="errorText">
           {saveError}
         </p>
       ) : null}
 
+      {activeTab === "summary" ? (
+      <>
       <div className="conceptSection" aria-label="Summaries">
         <div className="sectionTitle">L0</div>
         {!editing ? (
@@ -595,6 +665,88 @@ export function ConceptWorkspace(props: {
           onOpenConcept={props.onOpenConcept}
         />
       ) : null}
+
+      <div className="conceptSection" aria-label="Context" data-testid="concept-context-section">
+        <div className="sectionTitle">Context</div>
+
+        {!contextEditing ? (
+          concept.context ? (
+            <div className="conceptContextDisplay">
+              <p className="conceptContextText">{concept.context}</p>
+              <div className="buttonRow">
+                <button
+                  type="button"
+                  className="ghostButton"
+                  onClick={startEditContext}
+                  data-testid="context-edit"
+                >
+                  Edit
+                </button>
+                <button
+                  type="button"
+                  className="secondaryButton"
+                  onClick={handleGenerateContext}
+                  disabled={contextGenerating}
+                  data-testid="context-regenerate"
+                >
+                  {contextGenerating ? "Regenerating..." : "Regenerate"}
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div>
+              <p className="mutedText">(No context generated yet)</p>
+              <div className="buttonRow">
+                <button
+                  type="button"
+                  className="primaryButton"
+                  onClick={handleGenerateContext}
+                  disabled={contextGenerating}
+                  data-testid="context-generate"
+                >
+                  {contextGenerating ? "Generating..." : "Generate Context"}
+                </button>
+              </div>
+            </div>
+          )
+        ) : (
+          <div>
+            <textarea
+              className="textInput"
+              rows={8}
+              value={contextDraft}
+              onChange={(e) => setContextDraft(e.target.value)}
+              aria-label="Edit context"
+              data-testid="context-textarea"
+            />
+            <div className="buttonRow">
+              <button
+                type="button"
+                className="primaryButton"
+                onClick={saveContext}
+                disabled={contextSaving}
+                data-testid="context-save"
+              >
+                {contextSaving ? "Saving..." : "Save"}
+              </button>
+              <button
+                type="button"
+                className="ghostButton"
+                onClick={() => setContextEditing(false)}
+                disabled={contextSaving}
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        )}
+
+        {contextError ? (
+          <p role="alert" className="errorText">
+            {contextError}
+          </p>
+        ) : null}
+      </div>
 
       <div className="conceptSection" aria-label="Context Pack">
         <div className="sectionTitle">Context Pack</div>
@@ -759,7 +911,22 @@ export function ConceptWorkspace(props: {
           </div>
         ) : null}
       </div>
+      </>
+      ) : null}
 
+      {activeTab === "note" ? (
+        <ConceptNoteSection
+          conceptId={concept.id}
+          conceptTitle={concept.title}
+          noteSourceId={concept.noteSourceId ?? null}
+          onNoteCreated={(sourceId) => {
+            props.onConceptUpdated({ ...concept, noteSourceId: sourceId });
+          }}
+          onOpenConcept={props.onOpenConcept}
+        />
+      ) : null}
+
+      {activeTab === "sources" ? (
       <div className="conceptSection" aria-label="Sources">
         <div className="sectionTitle">Sources</div>
 
@@ -859,7 +1026,9 @@ export function ConceptWorkspace(props: {
           )
         ) : null}
       </div>
+      ) : null}
 
+      {activeTab === "quizzes" ? (
       <div className="conceptSection" aria-label="Quizzes">
         <div className="sectionTitle">Quizzes</div>
 
@@ -933,7 +1102,9 @@ export function ConceptWorkspace(props: {
           <p className="mutedText">(Not loaded)</p>
         ) : null}
       </div>
+      ) : null}
 
+      {activeTab === "summary" ? (
       <div className="conceptSection" aria-label="Merge">
         <div className="sectionTitle">Merge duplicates</div>
 
@@ -1020,6 +1191,7 @@ export function ConceptWorkspace(props: {
           )}
         </div>
       </div>
+      ) : null}
     </div>
   );
 }

@@ -11,8 +11,9 @@ export {
   type PrerequisitePathResult
 } from "./learning-path";
 
-export { isPrereqEdge, getPrereqDirection } from "./edge-semantics";
+export { isPrereqEdge, getPrereqDirection, EDGE_TYPE_CATEGORIES, getDefaultEdgeTypes, type EdgeTypeCategory } from "./edge-semantics";
 export { computeGraphLens, type GraphLensInput, type GraphLensResult } from "./graph-lens";
+export { wouldCreatePrereqCycle, type CycleCheckResult } from "./cycle-detection";
 
 export {
   ApiErrorSchema,
@@ -258,7 +259,13 @@ export {
   PostConceptNoteResponseSchema,
   type PostConceptNoteResponse,
   GetConceptBacklinksResponseSchema,
-  type GetConceptBacklinksResponse
+  type GetConceptBacklinksResponse,
+  PostGenerateConceptContextResponseSchema,
+  type PostGenerateConceptContextResponse,
+  PostUpdateConceptContextRequestSchema,
+  type PostUpdateConceptContextRequest,
+  PostUpdateConceptContextResponseSchema,
+  type PostUpdateConceptContextResponse
 } from "./schemas/api-v1";
 
 export { getConcept, getGraph } from "./api/client";

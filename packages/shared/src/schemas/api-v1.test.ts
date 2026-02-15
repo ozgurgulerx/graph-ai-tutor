@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   ApiErrorSchema,
+  ConceptSchema,
   EdgeTypeSchema,
   EvidenceChunkSchema,
   GraphLensQuerySchema,
@@ -22,7 +23,11 @@ import {
   TrainingSessionSchema,
   PostCreateTrainingSessionRequestSchema,
   PostSubmitTrainingAnswerRequestSchema,
-  TutorAnswerSchema
+  TutorAnswerSchema,
+  GetConceptNoteResponseSchema,
+  PostConceptNoteRequestSchema,
+  PostConceptNoteResponseSchema,
+  GetConceptBacklinksResponseSchema
 } from "./api-v1";
 
 describe("api-v1 schemas", () => {
@@ -247,5 +252,79 @@ describe("api-v1 schemas", () => {
   it("GraphLensQuery rejects radius=0 and radius=4", () => {
     expect(GraphLensQuerySchema.safeParse({ center: "a", radius: 0 }).success).toBe(false);
     expect(GraphLensQuerySchema.safeParse({ center: "a", radius: 4 }).success).toBe(false);
+  });
+
+  it("ConceptSchema defaults noteSourceId to null when omitted", () => {
+    const result = ConceptSchema.parse({
+      id: "c1",
+      title: "Test",
+      l0: null,
+      l1: [],
+      l2: [],
+      module: null,
+      createdAt: 0,
+      updatedAt: 0
+    });
+    expect(result.noteSourceId).toBeNull();
+  });
+
+  it("ConceptSchema accepts noteSourceId as string", () => {
+    const result = ConceptSchema.parse({
+      id: "c1",
+      title: "Test",
+      l0: null,
+      l1: [],
+      l2: [],
+      module: null,
+      noteSourceId: "source_123",
+      createdAt: 0,
+      updatedAt: 0
+    });
+    expect(result.noteSourceId).toBe("source_123");
+  });
+
+  it("parses GetConceptNoteResponse with source", () => {
+    const result = GetConceptNoteResponseSchema.parse({
+      source: { id: "s1", url: "vault://notes/note.md", title: "Note", createdAt: 0 },
+      content: "# Hello"
+    });
+    expect(result.source?.id).toBe("s1");
+    expect(result.content).toBe("# Hello");
+  });
+
+  it("parses GetConceptNoteResponse with null source", () => {
+    const result = GetConceptNoteResponseSchema.parse({ source: null, content: "" });
+    expect(result.source).toBeNull();
+  });
+
+  it("parses PostConceptNoteRequest with empty body", () => {
+    const result = PostConceptNoteRequestSchema.parse({});
+    expect(result).toEqual({});
+  });
+
+  it("parses PostConceptNoteRequest with title", () => {
+    const result = PostConceptNoteRequestSchema.parse({ title: "My note" });
+    expect(result.title).toBe("My note");
+  });
+
+  it("rejects PostConceptNoteRequest with extra fields", () => {
+    expect(PostConceptNoteRequestSchema.safeParse({ title: "ok", extra: 1 }).success).toBe(false);
+  });
+
+  it("parses PostConceptNoteResponse", () => {
+    const result = PostConceptNoteResponseSchema.parse({
+      source: { id: "s1", url: "vault://notes/note.md", title: "Note", createdAt: 0 }
+    });
+    expect(result.source.id).toBe("s1");
+  });
+
+  it("parses GetConceptBacklinksResponse", () => {
+    const result = GetConceptBacklinksResponseSchema.parse({
+      concepts: [
+        { id: "c1", title: "A", module: null }
+      ]
+    });
+    expect(result.concepts).toHaveLength(1);
+    expect(result.concepts[0].id).toBe("c1");
   });
 });

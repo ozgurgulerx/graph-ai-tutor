@@ -9,6 +9,9 @@
     "lint": "pnpm -w exec eslint packages/llm --max-warnings 0",
     "typecheck": "pnpm -w exec tsc -p packages/llm/tsconfig.json --noEmit",
     "test": "pnpm -w exec vitest run --root packages/llm"
+  },
+  "dependencies": {
+    "@azure/identity": "^4.6.0"
   }
 }
 

@@ -34,11 +34,24 @@ vi.mock("./api/client", () => {
     }),
     getConceptQuizzes: vi.fn(async () => ({ quizzes: [] })),
     postGenerateConceptQuizzes: vi.fn(async () => ({ quizzes: [] })),
+    postConceptLocalSource: vi.fn(async () => {
+      throw new Error("postConceptLocalSource should not be called in this test");
+    }),
     postContextPack: vi.fn(async () => ({
       markdown: "",
       fileName: "test.md",
       conceptIds: []
-    }))
+    })),
+    getConceptNote: vi.fn(async () => ({ source: null, content: "" })),
+    postConceptNote: vi.fn(async () => {
+      throw new Error("postConceptNote should not be called in this test");
+    }),
+    getConceptBacklinks: vi.fn(async () => ({ concepts: [] })),
+    getSourceContent: vi.fn(async () => ({ source: null, content: "" })),
+    postSourceContent: vi.fn(async () => {
+      throw new Error("postSourceContent should not be called in this test");
+    }),
+    getUniversalSearch: vi.fn(async () => ({ concepts: [], sources: [], evidence: [] }))
   };
 });
 
@@ -53,6 +66,7 @@ function makeConcept(overrides: Partial<Concept> = {}): Concept {
     l1: [],
     l2: [],
     module: null,
+    noteSourceId: null,
     masteryScore: 0,
     createdAt: 0,
     updatedAt: 0,
@@ -281,6 +295,9 @@ describe("ConceptWorkspace", () => {
       />
     );
 
+    // Switch to Quizzes tab first
+    fireEvent.click(screen.getByTestId("tab-quizzes"));
+
     fireEvent.click(screen.getByRole("button", { name: /^generate$/i }));
 
     expect(await screen.findByTestId("quiz-list")).toBeVisible();
@@ -322,5 +339,43 @@ describe("ConceptWorkspace", () => {
       "# Context Pack: KV cache\n",
       "KV_cache-1-hop-123.md"
     );
+  });
+
+  it("shows sub-tabs and switches between them", async () => {
+    const concept = makeConcept({ title: "KV cache" });
+
+    render(
+      <ConceptWorkspace
+        concept={concept}
+        onSave={vi.fn(async () => concept)}
+        onConceptUpdated={vi.fn()}
+      />
+    );
+
+    // Summary tab should be active by default
+    expect(screen.getByTestId("concept-sub-tabs")).toBeInTheDocument();
+    expect(screen.getByTestId("tab-summary")).toHaveClass("tabActive");
+
+    // L0 section should be visible in summary tab
+    expect(screen.getByLabelText("Summaries")).toBeInTheDocument();
+
+    // Switch to Note tab
+    fireEvent.click(screen.getByTestId("tab-note"));
+    expect(screen.getByTestId("tab-note")).toHaveClass("tabActive");
+    expect(screen.getByTestId("note-empty-state")).toBeInTheDocument();
+
+    // Switch to Sources tab
+    fireEvent.click(screen.getByTestId("tab-sources"));
+    expect(screen.getByTestId("tab-sources")).toHaveClass("tabActive");
+    expect(screen.getByLabelText("Sources")).toBeInTheDocument();
+
+    // Switch to Quizzes tab
+    fireEvent.click(screen.getByTestId("tab-quizzes"));
+    expect(screen.getByTestId("tab-quizzes")).toHaveClass("tabActive");
+    expect(screen.getByLabelText("Quizzes")).toBeInTheDocument();
+
+    // Switch back to Summary
+    fireEvent.click(screen.getByTestId("tab-summary"));
+    expect(screen.getByTestId("tab-summary")).toHaveClass("tabActive");
   });
 });

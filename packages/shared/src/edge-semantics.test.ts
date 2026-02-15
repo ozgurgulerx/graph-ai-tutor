@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
 
-import { isPrereqEdge, getPrereqDirection } from "./edge-semantics";
+import { isPrereqEdge, getPrereqDirection, EDGE_TYPE_CATEGORIES, getDefaultEdgeTypes } from "./edge-semantics";
 import { computePrerequisitePath } from "./learning-path";
+import { EdgeTypeSchema } from "./schemas/api-v1";
 
 describe("isPrereqEdge", () => {
   it("returns true for PREREQUISITE_OF", () => {
@@ -83,5 +84,19 @@ describe("direction agreement with computePrerequisitePath", () => {
     // Swapping would produce the wrong answer
     expect(dir.prereqId).not.toBe(edge.toConceptId);
     expect(dir.dependentId).not.toBe(edge.fromConceptId);
+  });
+});
+
+describe("EDGE_TYPE_CATEGORIES", () => {
+  it("covers every EdgeType exactly once", () => {
+    const all = EDGE_TYPE_CATEGORIES.flatMap((c) => [...c.types]);
+    expect(new Set(all)).toEqual(new Set(EdgeTypeSchema.options));
+    expect(all.length).toBe(EdgeTypeSchema.options.length);
+  });
+
+  it("getDefaultEdgeTypes returns only defaultOn category types", () => {
+    const defaults = getDefaultEdgeTypes();
+    const expected = EDGE_TYPE_CATEGORIES.filter((c) => c.defaultOn).flatMap((c) => [...c.types]);
+    expect(defaults).toEqual(new Set(expected));
   });
 });
