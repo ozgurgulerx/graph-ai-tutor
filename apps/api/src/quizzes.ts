@@ -1,3 +1,4 @@
+import { createOpenAIResponsesClient, resolveModel, runStructuredOutput } from "@graph-ai-tutor/llm";
 import { z } from "zod";
 
 export type QuizType = "CLOZE" | "ORDERING_STEPS" | "COMPARE_CONTRAST";
@@ -330,105 +331,8 @@ export type QuizLlm = {
   }) => Promise<unknown>;
 };
 
-type OpenAiResponsesResponse = {
-  output?: unknown;
-  [key: string]: unknown;
-};
-
-function isObject(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null;
-}
-
-function getErrorMessage(payload: unknown): string | undefined {
-  if (!isObject(payload)) return undefined;
-  const err = payload.error;
-  if (!isObject(err)) return undefined;
-  const msg = err.message;
-  return typeof msg === "string" ? msg : undefined;
-}
-
-function getOutputTextFromResponse(response: OpenAiResponsesResponse): string {
-  const output = response.output;
-  if (!Array.isArray(output)) return "";
-
-  const parts: string[] = [];
-  for (const item of output) {
-    if (!isObject(item)) continue;
-    if (item.type !== "message") continue;
-
-    const content = item.content;
-    if (!Array.isArray(content)) continue;
-
-    for (const c of content) {
-      if (!isObject(c)) continue;
-      if (c.type !== "output_text") continue;
-      const text = c.text;
-      if (typeof text === "string") parts.push(text);
-    }
-  }
-
-  return parts.join("");
-}
-
 function toJson(input: unknown): string {
   return JSON.stringify(input, null, 2);
-}
-
-async function runOpenAiStructuredJson(input: {
-  apiKey: string;
-  baseUrl: string;
-  model: string;
-  schemaName: string;
-  jsonSchema: unknown;
-  system: string;
-  user: string;
-}): Promise<unknown> {
-  const res = await fetch(`${input.baseUrl.replace(/\/+$/, "")}/responses`, {
-    method: "POST",
-    headers: {
-      "content-type": "application/json",
-      authorization: `Bearer ${input.apiKey}`
-    },
-    body: JSON.stringify({
-      model: input.model,
-      input: `SYSTEM:\n${input.system}\n\nUSER:\n${input.user}`,
-      text: {
-        format: {
-          type: "json_schema",
-          name: input.schemaName,
-          strict: true,
-          schema: input.jsonSchema
-        }
-      }
-    })
-  });
-
-  if (!res.ok) {
-    const payload = (await res.json().catch(async () => {
-      const text = await res.text().catch(() => "");
-      throw new Error(
-        `OpenAI /responses returned non-JSON (status ${res.status}): ${text.slice(0, 200)}`
-      );
-    })) as unknown;
-    const msg = getErrorMessage(payload) ?? `Request failed (${res.status} ${res.statusText})`;
-    throw new Error(`OpenAI /responses error: ${msg}`);
-  }
-
-  const payload = (await res.json()) as unknown;
-  if (!isObject(payload)) {
-    throw new Error("OpenAI /responses returned unexpected payload");
-  }
-
-  const content = getOutputTextFromResponse(payload as OpenAiResponsesResponse).trim();
-  if (!content) {
-    throw new Error("OpenAI /responses had no output_text content to parse");
-  }
-
-  try {
-    return JSON.parse(content) as unknown;
-  } catch (err) {
-    throw new Error(`OpenAI /responses output_text was not valid JSON: ${String(err)}`);
-  }
 }
 
 function assert(condition: unknown, message: string): asserts condition {
@@ -466,14 +370,13 @@ export function createOpenAiQuizLlm(options: {
   modelNano?: string;
   modelMini?: string;
 } = {}): QuizLlm {
-  const apiKey = options.apiKey ?? process.env.OPENAI_API_KEY;
-  if (!apiKey) {
-    throw new Error("OPENAI_API_KEY is required to use the OpenAI quiz generator");
-  }
+  const client = createOpenAIResponsesClient({
+    apiKey: options.apiKey,
+    baseUrl: options.baseUrl
+  });
 
-  const baseUrl = options.baseUrl ?? process.env.OPENAI_BASE_URL ?? "https://api.openai.com/v1";
-  const modelNano = options.modelNano ?? process.env.OPENAI_MODEL_NANO ?? "gpt-5-nano";
-  const modelMini = options.modelMini ?? process.env.OPENAI_MODEL_MINI ?? "gpt-5-mini";
+  const modelNano = options.modelNano ?? resolveModel("nano");
+  const modelMini = options.modelMini ?? resolveModel("mini");
 
   return {
     async proposeDraft(input) {
@@ -492,15 +395,17 @@ export function createOpenAiQuizLlm(options: {
         toJson(input.candidateConcepts)
       ].join("\n\n");
 
-      return await runOpenAiStructuredJson({
-        apiKey,
-        baseUrl,
+      const { data } = await runStructuredOutput<unknown>(client, {
         model: modelNano,
-        schemaName: "quiz_draft",
-        jsonSchema: QuizDraftJsonSchema,
-        system,
-        user
+        input: `SYSTEM:\n${system}\n\nUSER:\n${user}`,
+        spec: {
+          name: "quiz_draft",
+          schema: QuizDraftJsonSchema,
+          strict: true
+        }
       });
+
+      return data;
     },
 
     async finalize(input) {
@@ -520,15 +425,17 @@ export function createOpenAiQuizLlm(options: {
         toJson(input.draft.items)
       ].join("\n\n");
 
-      return await runOpenAiStructuredJson({
-        apiKey,
-        baseUrl,
+      const { data } = await runStructuredOutput<unknown>(client, {
         model: modelMini,
-        schemaName: "quiz_final",
-        jsonSchema: QuizFinalJsonSchema,
-        system,
-        user
+        input: `SYSTEM:\n${system}\n\nUSER:\n${user}`,
+        spec: {
+          name: "quiz_final",
+          schema: QuizFinalJsonSchema,
+          strict: true
+        }
       });
+
+      return data;
     }
   };
 }

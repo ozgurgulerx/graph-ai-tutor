@@ -1079,6 +1079,39 @@ body {
   font-weight: 700;
 }
 
+/* --- Debug Panel --- */
+
+.debugPanel {
+  margin-top: 0.5rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  background: #f8fafc;
+  font-size: 0.8rem;
+}
+
+.debugPanelSummary {
+  padding: 0.4rem 0.6rem;
+  cursor: pointer;
+  font-weight: 600;
+  color: #475569;
+}
+
+.debugPanelBody {
+  padding: 0 0.6rem 0.5rem;
+  color: #64748b;
+}
+
+.debugPanelBody p {
+  margin: 0.15rem 0;
+}
+
+/* --- Disabled Edge Filter --- */
+
+.edge-filter--disabled {
+  opacity: 0.5;
+  pointer-events: none;
+}
+
 /* --- Resizable Panel Dividers --- */
 
 .divider {

@@ -21,6 +21,8 @@ import {
   GetReviewDueQuerySchema,
   GetReviewDueResponseSchema,
   GraphClusteredResponseSchema,
+  GraphLensQuerySchema,
+  GraphLensResponseSchema,
   GraphQuerySchema,
   GraphResponseSchema,
   PostApplyChangesetResponseSchema,
@@ -75,7 +77,12 @@ import {
   PostSubmitTrainingAnswerResponseSchema,
   PostCompleteTrainingSessionResponseSchema,
   TrainingSessionParamsSchema,
-  TrainingSessionItemParamsSchema
+  TrainingSessionItemParamsSchema,
+  computeGraphLens,
+  GetConceptNoteResponseSchema,
+  PostConceptNoteRequestSchema,
+  PostConceptNoteResponseSchema,
+  GetConceptBacklinksResponseSchema
 } from "@graph-ai-tutor/shared";
 
 import { createOpenAiCaptureLlm, runCaptureJob, type CaptureLlm } from "./capture";
@@ -409,6 +416,70 @@ function registerApiRoutes(
     const validated = parseOr400(reply, GraphResponseSchema, payload);
     if (!validated) return;
     return validated;
+  });
+
+  app.get("/graph/lens", async (req, reply) => {
+    const query = parseOr400(reply, GraphLensQuerySchema, req.query ?? {});
+    if (!query) return;
+
+    const centerId = await resolveConceptId(deps.repos, query.center);
+    if (!centerId) {
+      sendError(reply, 404, "NOT_FOUND", "Concept not found", { id: query.center });
+      return;
+    }
+
+    // Phase 1: Discover nodes via undirected BFS through PREREQUISITE_OF edges
+    const seen = new Set<string>([centerId]);
+    let frontier = new Set<string>([centerId]);
+
+    for (let i = 0; i < query.radius; i++) {
+      if (frontier.size === 0) break;
+      const frontierEdges = await deps.repos.edge.listSummariesByConceptIds(
+        Array.from(frontier),
+        10_000
+      );
+      const next = new Set<string>();
+      for (const edge of frontierEdges) {
+        if (edge.type !== "PREREQUISITE_OF") continue;
+        for (const endpoint of [edge.fromConceptId, edge.toConceptId]) {
+          if (!seen.has(endpoint)) {
+            seen.add(endpoint);
+            next.add(endpoint);
+          }
+        }
+      }
+      frontier = next;
+    }
+
+    // Phase 2: Fetch all edges between discovered nodes (including secondary types)
+    const allNodeIds = Array.from(seen);
+    const allEdges = await deps.repos.edge.listSummariesByConceptIds(allNodeIds, 50_000);
+
+    // Phase 3: Fetch node summaries
+    const allNodes = await deps.repos.concept.listSummariesByIds(allNodeIds);
+
+    // Phase 4: Compute lens
+    const lensResult = computeGraphLens({
+      centerId,
+      radius: query.radius,
+      edges: allEdges,
+      nodes: allNodes,
+      edgeTypeFilter: query.edgeTypes
+    });
+
+    // Phase 5: Filter to only lens-relevant nodes and edges
+    const nodes = allNodes.filter((n) => lensResult.nodeIds.has(n.id));
+    const edges = allEdges.filter((e) => lensResult.edgeIds.has(e.id));
+
+    const lensPayload = {
+      nodes,
+      edges,
+      metadata: lensResult.metadata,
+      warnings: lensResult.warnings
+    };
+    const lensValidated = parseOr400(reply, GraphLensResponseSchema, lensPayload);
+    if (!lensValidated) return;
+    return lensValidated;
   });
 
   app.get("/graph/clustered", async (_req, reply) => {
@@ -768,6 +839,162 @@ function registerApiRoutes(
     }
 
     const validated = parseOr400(reply, PostConceptLocalSourceResponseSchema, { source });
+    if (!validated) return;
+    return validated;
+  });
+
+  // --- Concept Note ---
+
+  app.get("/concept/:id/note", async (req, reply) => {
+    const params = parseOr400(reply, GetConceptParamsSchema, req.params);
+    if (!params) return;
+
+    const conceptId = await resolveConceptId(deps.repos, params.id);
+    if (!conceptId) {
+      sendError(reply, 404, "NOT_FOUND", "Concept not found", { id: params.id });
+      return;
+    }
+
+    const concept = await deps.repos.concept.getById(conceptId);
+    if (!concept) {
+      sendError(reply, 404, "NOT_FOUND", "Concept not found", { id: conceptId });
+      return;
+    }
+
+    if (!concept.noteSourceId) {
+      const validated = parseOr400(reply, GetConceptNoteResponseSchema, { source: null, content: "" });
+      if (!validated) return;
+      return validated;
+    }
+
+    const source = await deps.repos.source.getById(concept.noteSourceId);
+    if (!source) {
+      const validated = parseOr400(reply, GetConceptNoteResponseSchema, { source: null, content: "" });
+      if (!validated) return;
+      return validated;
+    }
+
+    try {
+      const content = await readVaultTextFile(source.url);
+      const validated = parseOr400(reply, GetConceptNoteResponseSchema, { source, content });
+      if (!validated) return;
+      return validated;
+    } catch (err) {
+      const code = err instanceof Error ? err.message : "";
+      if (code.includes("ENOENT")) {
+        const validated = parseOr400(reply, GetConceptNoteResponseSchema, { source, content: "" });
+        if (!validated) return;
+        return validated;
+      }
+      sendError(reply, 500, "VAULT_READ_FAILED", "Failed to read note file");
+      app.log.error(err);
+      return;
+    }
+  });
+
+  app.post("/concept/:id/note", async (req, reply) => {
+    const params = parseOr400(reply, GetConceptParamsSchema, req.params);
+    if (!params) return;
+
+    const body = parseOr400(reply, PostConceptNoteRequestSchema, req.body ?? {});
+    if (!body) return;
+
+    const conceptId = await resolveConceptId(deps.repos, params.id);
+    if (!conceptId) {
+      sendError(reply, 404, "NOT_FOUND", "Concept not found", { id: params.id });
+      return;
+    }
+
+    const concept = await deps.repos.concept.getById(conceptId);
+    if (!concept) {
+      sendError(reply, 404, "NOT_FOUND", "Concept not found", { id: conceptId });
+      return;
+    }
+
+    // Idempotent: if note already exists, return it
+    if (concept.noteSourceId) {
+      const existing = await deps.repos.source.getById(concept.noteSourceId);
+      if (existing) {
+        const validated = parseOr400(reply, PostConceptNoteResponseSchema, { source: existing });
+        if (!validated) return;
+        return validated;
+      }
+    }
+
+    const title = body.title ?? `${concept.title} notes`;
+    const fileName = `note_${conceptId}.md`;
+    const url = `vault://notes/${fileName}`;
+
+    try {
+      resolveVaultUrlToPath(url);
+    } catch (err) {
+      sendError(
+        reply,
+        500,
+        "VAULT_PATH_INVALID",
+        err instanceof Error ? err.message : "Invalid vault path"
+      );
+      return;
+    }
+
+    const initial = `# ${concept.title}\n\n`;
+
+    try {
+      await writeVaultTextFileAtomic(url, initial);
+    } catch (err) {
+      sendError(reply, 500, "VAULT_WRITE_FAILED", "Failed to write note file");
+      app.log.error(err);
+      return;
+    }
+
+    let source;
+    try {
+      source = await deps.repos.source.create({ url, title });
+    } catch (err) {
+      sendError(reply, 500, "SOURCE_CREATE_FAILED", "Failed to create note source");
+      app.log.error(err);
+      return;
+    }
+
+    try {
+      await deps.repos.concept.update({ id: conceptId, noteSourceId: source.id });
+    } catch (err) {
+      sendError(reply, 500, "CONCEPT_UPDATE_FAILED", "Failed to link note to concept");
+      app.log.error(err);
+      return;
+    }
+
+    try {
+      await deps.repos.conceptSource.attach(conceptId, source.id);
+    } catch {
+      // non-critical — note is already linked via FK
+    }
+
+    const validated = parseOr400(reply, PostConceptNoteResponseSchema, { source });
+    if (!validated) return;
+    return validated;
+  });
+
+  app.get("/concept/:id/backlinks", async (req, reply) => {
+    const params = parseOr400(reply, GetConceptParamsSchema, req.params);
+    if (!params) return;
+
+    const conceptId = await resolveConceptId(deps.repos, params.id);
+    if (!conceptId) {
+      sendError(reply, 404, "NOT_FOUND", "Concept not found", { id: params.id });
+      return;
+    }
+
+    const concept = await deps.repos.concept.getById(conceptId);
+    if (!concept) {
+      sendError(reply, 404, "NOT_FOUND", "Concept not found", { id: conceptId });
+      return;
+    }
+
+    const backlinks = await deps.repos.concept.listBacklinkConcepts(concept.title);
+    const filtered = backlinks.filter((c) => c.id !== conceptId);
+
+    const validated = parseOr400(reply, GetConceptBacklinksResponseSchema, { concepts: filtered });
     if (!validated) return;
     return validated;
   });

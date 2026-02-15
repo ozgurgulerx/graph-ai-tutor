@@ -1,4 +1,5 @@
 import type { EdgeSummary } from "./schemas/api-v1";
+import { getPrereqDirection } from "./edge-semantics";
 
 export type PrerequisitePathOk = {
   ok: true;
@@ -40,10 +41,11 @@ export function computePrerequisitePath(params: {
   const prereqsOf = new Map<string, Set<string>>();
 
   for (const e of params.edges) {
-    if (e.type !== "PREREQUISITE_OF") continue;
-    const set = prereqsOf.get(e.toConceptId) ?? new Set<string>();
-    set.add(e.fromConceptId);
-    prereqsOf.set(e.toConceptId, set);
+    const dir = getPrereqDirection(e);
+    if (!dir) continue;
+    const set = prereqsOf.get(dir.dependentId) ?? new Set<string>();
+    set.add(dir.prereqId);
+    prereqsOf.set(dir.dependentId, set);
   }
 
   const target = params.targetConceptId;
@@ -74,10 +76,11 @@ export function computePrerequisitePath(params: {
   }
 
   for (const e of params.edges) {
-    if (e.type !== "PREREQUISITE_OF") continue;
-    if (!nodeSet.has(e.fromConceptId) || !nodeSet.has(e.toConceptId)) continue;
-    outgoing.get(e.fromConceptId)?.push(e.toConceptId);
-    indegree.set(e.toConceptId, (indegree.get(e.toConceptId) ?? 0) + 1);
+    const dir = getPrereqDirection(e);
+    if (!dir) continue;
+    if (!nodeSet.has(dir.prereqId) || !nodeSet.has(dir.dependentId)) continue;
+    outgoing.get(dir.prereqId)?.push(dir.dependentId);
+    indegree.set(dir.dependentId, (indegree.get(dir.dependentId) ?? 0) + 1);
   }
 
   for (const [id, deps] of outgoing) {

@@ -72,6 +72,7 @@ export const ConceptSchema = z.object({
   l1: z.array(z.string()),
   l2: z.array(z.string()),
   module: z.string().nullable(),
+  noteSourceId: z.string().nullable().optional().default(null),
   masteryScore: z.number().optional().default(0),
   createdAt: z.number(),
   updatedAt: z.number()
@@ -183,6 +184,48 @@ export const GraphClusteredResponseSchema = z.object({
 });
 
 export type GraphClusteredResponse = z.infer<typeof GraphClusteredResponseSchema>;
+
+// --- Graph Lens ---
+
+export const LensSideSchema = z.enum(["prereq", "center", "dependent", "related"]);
+export type LensSide = z.infer<typeof LensSideSchema>;
+
+export const LensNodeMetadataSchema = z.object({
+  id: z.string(),
+  side: LensSideSchema,
+  depth: z.number().int().nonnegative(),
+  rank: z.number().int().nonnegative()
+});
+export type LensNodeMetadata = z.infer<typeof LensNodeMetadataSchema>;
+
+export const GraphLensQuerySchema = z
+  .object({
+    center: z.string().min(1),
+    radius: z.coerce.number().int().min(1).max(3).optional().default(1),
+    edgeTypes: z
+      .preprocess((value) => {
+        if (Array.isArray(value)) return value;
+        if (typeof value === "string") {
+          return value
+            .split(",")
+            .map((v) => v.trim())
+            .filter(Boolean);
+        }
+        return [];
+      }, z.array(EdgeTypeSchema))
+      .optional()
+      .default([])
+  })
+  .strict();
+export type GraphLensQuery = z.infer<typeof GraphLensQuerySchema>;
+
+export const GraphLensResponseSchema = z.object({
+  nodes: z.array(ConceptSummarySchema),
+  edges: z.array(EdgeSummarySchema),
+  metadata: z.array(LensNodeMetadataSchema),
+  warnings: z.array(z.string())
+});
+export type GraphLensResponse = z.infer<typeof GraphLensResponseSchema>;
 
 export const GetConceptParamsSchema = z.object({
   id: z.string()
@@ -1113,3 +1156,32 @@ export const PostCompleteTrainingSessionResponseSchema = z
   .strict();
 
 export type PostCompleteTrainingSessionResponse = z.infer<typeof PostCompleteTrainingSessionResponseSchema>;
+
+// --- Concept Note ---
+
+export const GetConceptNoteResponseSchema = z.object({
+  source: SourceSchema.nullable(),
+  content: z.string()
+});
+
+export type GetConceptNoteResponse = z.infer<typeof GetConceptNoteResponseSchema>;
+
+export const PostConceptNoteRequestSchema = z
+  .object({
+    title: z.string().min(1).nullable().optional()
+  })
+  .strict();
+
+export type PostConceptNoteRequest = z.infer<typeof PostConceptNoteRequestSchema>;
+
+export const PostConceptNoteResponseSchema = z.object({
+  source: SourceSchema
+});
+
+export type PostConceptNoteResponse = z.infer<typeof PostConceptNoteResponseSchema>;
+
+export const GetConceptBacklinksResponseSchema = z.object({
+  concepts: z.array(ConceptSummarySchema)
+});
+
+export type GetConceptBacklinksResponse = z.infer<typeof GetConceptBacklinksResponseSchema>;

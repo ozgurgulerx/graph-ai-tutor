@@ -4,6 +4,7 @@ import {
   ApiErrorSchema,
   EdgeTypeSchema,
   EvidenceChunkSchema,
+  GraphLensQuerySchema,
   PostConceptSourceRequestSchema,
   PostConceptLocalSourceRequestSchema,
   PostSourceContentRequestSchema,
@@ -224,5 +225,27 @@ describe("api-v1 schemas", () => {
       answer: "My answer text"
     });
     expect(req.answer).toBe("My answer text");
+  });
+
+  it("GraphLensQuery defaults: center only → radius=1, edgeTypes=[]", () => {
+    const result = GraphLensQuerySchema.parse({ center: "a" });
+    expect(result).toEqual({ center: "a", radius: 1, edgeTypes: [] });
+  });
+
+  it("GraphLensQuery parses comma-separated edgeTypes", () => {
+    const result = GraphLensQuerySchema.parse({
+      center: "x",
+      edgeTypes: "PREREQUISITE_OF,PART_OF"
+    });
+    expect(result.edgeTypes).toEqual(["PREREQUISITE_OF", "PART_OF"]);
+  });
+
+  it("GraphLensQuery rejects missing center", () => {
+    expect(GraphLensQuerySchema.safeParse({}).success).toBe(false);
+  });
+
+  it("GraphLensQuery rejects radius=0 and radius=4", () => {
+    expect(GraphLensQuerySchema.safeParse({ center: "a", radius: 0 }).success).toBe(false);
+    expect(GraphLensQuerySchema.safeParse({ center: "a", radius: 4 }).success).toBe(false);
   });
 });

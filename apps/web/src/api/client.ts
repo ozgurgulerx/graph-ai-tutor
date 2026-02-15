@@ -12,6 +12,7 @@ import {
   GetReviewDueResponseSchema,
   GraphClusteredResponseSchema,
   GraphResponseSchema,
+  GraphLensResponseSchema,
   PostApplyChangesetResponseSchema,
   PostChangesetStatusRequestSchema,
   PostChangesetStatusResponseSchema,
@@ -52,7 +53,11 @@ import {
   PostSubmitTrainingAnswerRequestSchema,
   PostSubmitTrainingAnswerResponseSchema,
   PostCompleteTrainingSessionResponseSchema,
-  SearchUniversalResponseSchema
+  SearchUniversalResponseSchema,
+  GetConceptNoteResponseSchema,
+  PostConceptNoteRequestSchema,
+  PostConceptNoteResponseSchema,
+  GetConceptBacklinksResponseSchema
 } from "@graph-ai-tutor/shared";
 import type {
   GetChangesetResponse,
@@ -65,6 +70,7 @@ import type {
   GetReviewDueResponse,
   GraphClusteredResponse,
   GraphResponse,
+  GraphLensResponse,
   PostApplyChangesetResponse,
   PostChangesetItemStatusRequest,
   PostChangesetItemStatusResponse,
@@ -105,7 +111,11 @@ import type {
   PostSubmitTrainingAnswerRequest,
   PostSubmitTrainingAnswerResponse,
   PostCompleteTrainingSessionResponse,
-  SearchUniversalResponse
+  SearchUniversalResponse,
+  GetConceptNoteResponse,
+  PostConceptNoteRequest,
+  PostConceptNoteResponse,
+  GetConceptBacklinksResponse
 } from "@graph-ai-tutor/shared";
 
 const API_BASE = "/api";
@@ -154,6 +164,18 @@ export function getGraphLocal(center: string, depth = 2): Promise<GraphResponse>
 
 export function getGraphClustered(): Promise<GraphClusteredResponse> {
   return requestJson(GraphClusteredResponseSchema, "/graph/clustered");
+}
+
+export function getGraphLens(
+  center: string,
+  radius = 1,
+  edgeTypes: string[] = []
+): Promise<GraphLensResponse> {
+  const params = new URLSearchParams();
+  params.set("center", center);
+  params.set("radius", String(radius));
+  if (edgeTypes.length > 0) params.set("edgeTypes", edgeTypes.join(","));
+  return requestJson(GraphLensResponseSchema, `/graph/lens?${params.toString()}`);
 }
 
 export function getUniversalSearch(q: string, limit?: number): Promise<SearchUniversalResponse> {
@@ -504,6 +526,36 @@ export function postCompleteTrainingSession(
     PostCompleteTrainingSessionResponseSchema,
     `/training/session/${encodeURIComponent(sessionId)}/complete`,
     { method: "POST" }
+  );
+}
+
+export function getConceptNote(conceptId: string): Promise<GetConceptNoteResponse> {
+  return requestJson(
+    GetConceptNoteResponseSchema,
+    `/concept/${encodeURIComponent(conceptId)}/note`
+  );
+}
+
+export function postConceptNote(
+  conceptId: string,
+  input: PostConceptNoteRequest = {}
+): Promise<PostConceptNoteResponse> {
+  const parsed = PostConceptNoteRequestSchema.parse(input);
+  return requestJson(
+    PostConceptNoteResponseSchema,
+    `/concept/${encodeURIComponent(conceptId)}/note`,
+    {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(parsed)
+    }
+  );
+}
+
+export function getConceptBacklinks(conceptId: string): Promise<GetConceptBacklinksResponse> {
+  return requestJson(
+    GetConceptBacklinksResponseSchema,
+    `/concept/${encodeURIComponent(conceptId)}/backlinks`
   );
 }
 

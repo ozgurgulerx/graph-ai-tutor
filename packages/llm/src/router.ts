@@ -7,7 +7,8 @@ export function resolveModel(
   tier: ModelTier,
   env: NodeJS.ProcessEnv = process.env
 ): string {
-  if (tier === "nano") return env.OPENAI_MODEL_NANO ?? DEFAULT_MODEL_NANO;
-  return env.OPENAI_MODEL_MINI ?? DEFAULT_MODEL_MINI;
+  if (tier === "nano") {
+    return env.OPENAI_MODEL_NANO ?? env.AZURE_OPENAI_DEPLOYMENT_NAME ?? DEFAULT_MODEL_NANO;
+  }
+  return env.OPENAI_MODEL_MINI ?? env.AZURE_OPENAI_REASONING_DEPLOYMENT_NAME ?? DEFAULT_MODEL_MINI;
 }
-

@@ -35,6 +35,7 @@ export type Concept = {
   l1: string[];
   l2: string[];
   module: string | null;
+  noteSourceId: string | null;
   masteryScore: number;
   createdAt: number;
   updatedAt: number;
@@ -74,6 +75,7 @@ export type ConceptCreate = {
   l1?: string[];
   l2?: string[];
   module?: string | null;
+  noteSourceId?: string | null;
 };
 
 export type ConceptUpdate = {
@@ -84,6 +86,7 @@ export type ConceptUpdate = {
   l1?: string[];
   l2?: string[];
   module?: string | null;
+  noteSourceId?: string | null;
 };
 
 export type EdgeType =
@@ -628,14 +631,15 @@ export function createRepositories(pool: PgPoolLike) {
           l1: string[] | null;
           l2: string[] | null;
           module: string | null;
+          note_source_id: string | null;
           mastery_score: unknown;
           created_at: unknown;
           updated_at: unknown;
         }>(
-          `INSERT INTO concept (id, title, kind, l0, l1, l2, module, created_at, updated_at)
-           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-           RETURNING id, title, kind, l0, l1, l2, module, mastery_score, created_at, updated_at`,
-          [id, input.title, kind, input.l0 ?? null, l1, l2, input.module ?? null, now, now]
+          `INSERT INTO concept (id, title, kind, l0, l1, l2, module, note_source_id, created_at, updated_at)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+           RETURNING id, title, kind, l0, l1, l2, module, note_source_id, mastery_score, created_at, updated_at`,
+          [id, input.title, kind, input.l0 ?? null, l1, l2, input.module ?? null, input.noteSourceId ?? null, now, now]
         );
         const row = res.rows[0];
         if (!row) throw new Error("Failed to create concept");
@@ -647,6 +651,7 @@ export function createRepositories(pool: PgPoolLike) {
           l1: toStringArray(row.l1),
           l2: toStringArray(row.l2),
           module: row.module,
+          noteSourceId: row.note_source_id,
           masteryScore: toNumber(row.mastery_score),
           createdAt: toNumber(row.created_at),
           updatedAt: toNumber(row.updated_at)
@@ -662,11 +667,12 @@ export function createRepositories(pool: PgPoolLike) {
           l1: string[] | null;
           l2: string[] | null;
           module: string | null;
+          note_source_id: string | null;
           mastery_score: unknown;
           created_at: unknown;
           updated_at: unknown;
         }>(
-          `SELECT id, title, kind, l0, l1, l2, module, mastery_score, created_at, updated_at
+          `SELECT id, title, kind, l0, l1, l2, module, note_source_id, mastery_score, created_at, updated_at
            FROM concept
            WHERE id = $1`,
           [id]
@@ -681,6 +687,7 @@ export function createRepositories(pool: PgPoolLike) {
           l1: toStringArray(row.l1),
           l2: toStringArray(row.l2),
           module: row.module,
+          noteSourceId: row.note_source_id,
           masteryScore: toNumber(row.mastery_score),
           createdAt: toNumber(row.created_at),
           updatedAt: toNumber(row.updated_at)
@@ -715,6 +722,10 @@ export function createRepositories(pool: PgPoolLike) {
         if (hasOwn(input, "module")) {
           sets.push(`module = $${i++}`);
           values.push(input.module ?? null);
+        }
+        if (hasOwn(input, "noteSourceId")) {
+          sets.push(`note_source_id = $${i++}`);
+          values.push(input.noteSourceId ?? null);
         }
 
         sets.push(`updated_at = $${i++}`);
@@ -898,6 +909,32 @@ export function createRepositories(pool: PgPoolLike) {
           rank: 0,
           titleHighlight: highlightText(r.title, query),
           snippetHighlight: highlightText(r.l0 ?? "", query)
+        }));
+      },
+
+      async listBacklinkConcepts(title: string): Promise<ConceptSummary[]> {
+        const pattern = `%[[${title}]]%`;
+        const res = await pool.query<{
+          id: string;
+          title: string;
+          kind: NodeKind;
+          module: string | null;
+          mastery_score: unknown;
+        }>(
+          `SELECT c.id, c.title, c.kind, c.module, c.mastery_score
+           FROM concept c
+           JOIN source_content sc ON sc.source_id = c.note_source_id
+           WHERE sc.content LIKE $1
+             AND c.note_source_id IS NOT NULL
+           ORDER BY c.title ASC`,
+          [pattern]
+        );
+        return res.rows.map((r) => ({
+          id: r.id,
+          title: r.title,
+          kind: r.kind,
+          module: r.module,
+          masteryScore: toNumber(r.mastery_score)
         }));
       },
 

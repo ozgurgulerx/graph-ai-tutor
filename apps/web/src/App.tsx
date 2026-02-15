@@ -8,7 +8,9 @@ import {
   type EdgeType,
   type GetEdgeEvidenceResponse,
   type GraphClusteredResponse,
+  type GraphLensResponse,
   type GraphResponse,
+  type LensNodeMetadata,
   type SearchUniversalResponse
 } from "@graph-ai-tutor/shared";
 
@@ -17,6 +19,7 @@ import {
   getEdgeEvidence,
   getGraph,
   getGraphClustered,
+  getGraphLens,
   getUniversalSearch,
   invalidateConceptCache,
   postConcept,
@@ -37,11 +40,14 @@ import { collectWithinHops } from "./search/neighborhood";
 import { HighlightedText } from "./search/HighlightedText";
 import { usePanelResize } from "./usePanelResize";
 
+type GraphViewMode = "classic" | "focus" | "lens";
+
 type AtlasViewProps = {
   graph: GraphResponse | null;
   clusteredData: GraphClusteredResponse | null;
   graphMode: "full" | "clustered";
   edgeTypeAllowlist: ReadonlySet<EdgeType>;
+  edgeVisMode: EdgeVisMode;
   highlightConceptIds: ReadonlySet<string>;
   changesetHighlightConceptIds: ReadonlySet<string>;
   masteryOverlayEnabled: boolean;
@@ -49,6 +55,8 @@ type AtlasViewProps = {
   pinnedConceptIds: ReadonlySet<string>;
   focusModeEnabled: boolean;
   focusDepth: number;
+  viewMode: GraphViewMode;
+  lensData: GraphLensResponse | null;
   onSelectConcept: (conceptId: string) => void;
   onSelectEdge: (edgeId: string) => void;
   onCyReady?: (cy: cytoscape.Core | null) => void;
@@ -109,10 +117,24 @@ function buildElements(
   return elements;
 }
 
-function applyEdgeFilter(cy: cytoscape.Core, allowlist: ReadonlySet<EdgeType>) {
+type EdgeVisMode = "all" | "prereq_only" | "filtered";
+
+function applyEdgeFilter(
+  cy: cytoscape.Core,
+  allowlist: ReadonlySet<EdgeType>,
+  edgeVisMode: EdgeVisMode = "filtered"
+) {
   cy.edges().forEach((edge) => {
     const type = edge.data("type") as EdgeType;
-    edge.style("display", allowlist.has(type) ? "element" : "none");
+    let visible: boolean;
+    if (edgeVisMode === "all") {
+      visible = true;
+    } else if (edgeVisMode === "prereq_only") {
+      visible = type === "PREREQUISITE_OF";
+    } else {
+      visible = allowlist.has(type);
+    }
+    edge.style("display", visible ? "element" : "none");
   });
 }
 
@@ -255,11 +277,96 @@ function applyFocusMode(
   });
 }
 
+const LENS_X_GAP = 250;
+const LENS_Y_GAP = 80;
+
+function computeLensPositions(metadata: LensNodeMetadata[]): Map<string, { x: number; y: number }> {
+  const groups = new Map<string, LensNodeMetadata[]>();
+  for (const m of metadata) {
+    const key = `${m.side}:${m.depth}`;
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key)!.push(m);
+  }
+
+  const positions = new Map<string, { x: number; y: number }>();
+  for (const m of metadata) {
+    const x = m.side === "prereq" ? -m.depth * LENS_X_GAP
+            : m.side === "dependent" ? m.depth * LENS_X_GAP
+            : 0;
+    const groupSize = groups.get(`${m.side}:${m.depth}`)?.length ?? 1;
+    const y = (m.rank - (groupSize - 1) / 2) * LENS_Y_GAP;
+    positions.set(m.id, { x, y });
+  }
+  return positions;
+}
+
+const LENS_CLASSES = [
+  "lensCenter", "lensPrereq", "lensDependent",
+  "lensHidden", "lensEdgeBackbone", "lensEdgeSecondary"
+] as const;
+
+function applyLensMode(
+  cy: cytoscape.Core,
+  opts: {
+    enabled: boolean;
+    data: GraphLensResponse | null;
+  }
+) {
+  // 1. Clear all lens classes
+  cy.nodes().removeClass(LENS_CLASSES.join(" "));
+  cy.edges().removeClass(LENS_CLASSES.join(" "));
+
+  // 2. Exit path
+  if (!opts.enabled || !opts.data) return;
+
+  const lensNodeIds = new Set(opts.data.metadata.map((m) => m.id));
+  const lensEdgeIds = new Set(opts.data.edges.map((e) => e.id));
+
+  // 3. Hide non-lens nodes/edges
+  cy.nodes().forEach((node) => {
+    if (!lensNodeIds.has(node.id())) node.addClass("lensHidden");
+  });
+  cy.edges().forEach((edge) => {
+    if (!lensEdgeIds.has(edge.id())) edge.addClass("lensHidden");
+  });
+
+  // 4. Position lens nodes
+  const positions = computeLensPositions(opts.data.metadata);
+  for (const [id, pos] of positions) {
+    const node = cy.$id(id);
+    if (!node.empty()) node.position(pos);
+  }
+
+  // 5. Classify nodes
+  const sideById = new Map<string, string>();
+  for (const m of opts.data.metadata) {
+    sideById.set(m.id, m.side);
+  }
+  for (const id of lensNodeIds) {
+    const node = cy.$id(id);
+    if (node.empty()) continue;
+    const side = sideById.get(id);
+    if (side === "center") node.addClass("lensCenter");
+    else if (side === "prereq") node.addClass("lensPrereq");
+    else if (side === "dependent") node.addClass("lensDependent");
+  }
+
+  // 6. Classify edges
+  for (const edgeId of lensEdgeIds) {
+    const edge = cy.$id(edgeId);
+    if (edge.empty()) continue;
+    const type = edge.data("type");
+    if (type === "PREREQUISITE_OF") edge.addClass("lensEdgeBackbone");
+    else edge.addClass("lensEdgeSecondary");
+  }
+}
+
 function AtlasView({
   graph,
   clusteredData,
   graphMode,
   edgeTypeAllowlist,
+  edgeVisMode,
   highlightConceptIds,
   changesetHighlightConceptIds,
   masteryOverlayEnabled,
@@ -267,12 +374,15 @@ function AtlasView({
   pinnedConceptIds,
   focusModeEnabled,
   focusDepth,
+  viewMode,
+  lensData,
   onSelectConcept,
   onSelectEdge,
   onCyReady
 }: AtlasViewProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const cyRef = useRef<cytoscape.Core | null>(null);
+  const preLensPositionsRef = useRef<Map<string, { x: number; y: number }> | null>(null);
 
   const onSelectRef = useRef(onSelectConcept);
   useEffect(() => {
@@ -294,6 +404,11 @@ function AtlasView({
     allowlistRef.current = edgeTypeAllowlist;
   }, [edgeTypeAllowlist]);
 
+  const edgeVisModeRef = useRef(edgeVisMode);
+  useEffect(() => {
+    edgeVisModeRef.current = edgeVisMode;
+  }, [edgeVisMode]);
+
   const highlightRef = useRef(highlightConceptIds);
   useEffect(() => {
     highlightRef.current = highlightConceptIds;
@@ -308,6 +423,16 @@ function AtlasView({
   useEffect(() => {
     pinnedRef.current = pinnedConceptIds;
   }, [pinnedConceptIds]);
+
+  const viewModeRef = useRef(viewMode);
+  useEffect(() => {
+    viewModeRef.current = viewMode;
+  }, [viewMode]);
+
+  const lensDataRef = useRef(lensData);
+  useEffect(() => {
+    lensDataRef.current = lensData;
+  }, [lensData]);
 
   const elements = useMemo(
     () => (graph ? buildElements(graph, clusteredData, graphMode) : []),
@@ -414,6 +539,64 @@ function AtlasView({
           }
         },
         {
+          selector: "node.lensCenter",
+          style: {
+            "background-color": "#2563eb",
+            "border-width": 4,
+            "border-color": "#1d4ed8",
+            width: 40,
+            height: 40,
+            "font-weight": "bold" as cytoscape.Css.FontWeight
+          }
+        },
+        {
+          selector: "node.lensPrereq",
+          style: {
+            "background-color": "#0d9488",
+            "border-width": 2,
+            "border-color": "#0f766e"
+          }
+        },
+        {
+          selector: "node.lensDependent",
+          style: {
+            "background-color": "#7c3aed",
+            "border-width": 2,
+            "border-color": "#6d28d9"
+          }
+        },
+        {
+          selector: "node.lensHidden",
+          style: {
+            display: "none"
+          }
+        },
+        {
+          selector: "edge.lensEdgeBackbone",
+          style: {
+            width: 4,
+            "line-color": "#334155",
+            "target-arrow-color": "#334155",
+            opacity: 1
+          }
+        },
+        {
+          selector: "edge.lensEdgeSecondary",
+          style: {
+            width: 1.5,
+            "line-color": "#cbd5e1",
+            "target-arrow-color": "#cbd5e1",
+            "line-style": "dashed",
+            opacity: 0.6
+          }
+        },
+        {
+          selector: "edge.lensHidden",
+          style: {
+            display: "none"
+          }
+        },
+        {
           selector: "$node > node",
           style: {
             "background-color": "#f1f5f9",
@@ -463,23 +646,37 @@ function AtlasView({
     const cy = cyRef.current;
     if (!cy) return;
 
+    preLensPositionsRef.current = null;
+
     cy.elements().remove();
     if (elements.length > 0) {
       cy.add(elements);
       cy.layout({ name: "cose", animate: false, fit: true }).run();
     }
 
-    applyEdgeFilter(cy, allowlistRef.current);
+    applyEdgeFilter(cy, allowlistRef.current, edgeVisModeRef.current);
     applyConceptHighlight(cy, highlightRef.current);
     applyChangesetHighlight(cy, changesetHighlightRef.current);
     applyPinnedNodes(cy, pinnedRef.current);
+
+    // If currently in lens mode, save fresh COSE positions and reapply lens
+    if (viewModeRef.current === "lens" && lensDataRef.current) {
+      const saved = new Map<string, { x: number; y: number }>();
+      cy.nodes().forEach((n) => {
+        const pos = n.position();
+        saved.set(n.id(), { x: pos.x, y: pos.y });
+      });
+      preLensPositionsRef.current = saved;
+      applyLensMode(cy, { enabled: true, data: lensDataRef.current });
+      cy.animate({ fit: { eles: cy.nodes().not(".lensHidden"), padding: 60 }, duration: 400 });
+    }
   }, [elements]);
 
   useEffect(() => {
     const cy = cyRef.current;
     if (!cy) return;
-    applyEdgeFilter(cy, edgeTypeAllowlist);
-  }, [edgeTypeAllowlist]);
+    applyEdgeFilter(cy, edgeTypeAllowlist, edgeVisMode);
+  }, [edgeTypeAllowlist, edgeVisMode]);
 
   useEffect(() => {
     const cy = cyRef.current;
@@ -516,6 +713,37 @@ function AtlasView({
     if (!cy) return;
     applyMasteryOverlay(cy, graph, masteryOverlayEnabled);
   }, [graph, masteryOverlayEnabled]);
+
+  useEffect(() => {
+    const cy = cyRef.current;
+    if (!cy) return;
+
+    if (viewMode === "lens" && lensData) {
+      // Save current positions before repositioning
+      if (!preLensPositionsRef.current) {
+        const saved = new Map<string, { x: number; y: number }>();
+        cy.nodes().forEach((n) => {
+          const pos = n.position();
+          saved.set(n.id(), { x: pos.x, y: pos.y });
+        });
+        preLensPositionsRef.current = saved;
+      }
+      applyLensMode(cy, { enabled: true, data: lensData });
+      cy.animate({ fit: { eles: cy.nodes().not(".lensHidden"), padding: 60 }, duration: 400 });
+    } else {
+      // Clear lens mode
+      applyLensMode(cy, { enabled: false, data: null });
+      // Restore saved positions
+      if (preLensPositionsRef.current) {
+        for (const [id, pos] of preLensPositionsRef.current) {
+          const node = cy.$id(id);
+          if (!node.empty()) node.position(pos);
+        }
+        preLensPositionsRef.current = null;
+        cy.animate({ fit: { eles: cy.elements(), padding: 50 }, duration: 400 });
+      }
+    }
+  }, [viewMode, lensData]);
 
   useEffect(() => {
     const el = containerRef.current;
@@ -595,9 +823,19 @@ export default function App() {
 
   const [masteryOverlayEnabled, setMasteryOverlayEnabled] = useState(false);
 
-  const [focusModeEnabled, setFocusModeEnabled] = useState(false);
+  const [viewMode, setViewMode] = useState<GraphViewMode>("classic");
+  const focusModeEnabled = viewMode === "focus";
   const [focusDepth, setFocusDepth] = useState(1);
   const [pinnedConceptIds, setPinnedConceptIds] = useState<Set<string>>(() => new Set());
+
+  const [lensData, setLensData] = useState<GraphLensResponse | null>(null);
+  const [lensLoading, setLensLoading] = useState(false);
+  const [lensError, setLensError] = useState<string | null>(null);
+  const [lensRadius, setLensRadius] = useState(1);
+
+  const [edgeVisMode, setEdgeVisMode] = useState<EdgeVisMode>("filtered");
+  const [debugPanelOpen, setDebugPanelOpen] = useState(false);
+  const [debugZoom, setDebugZoom] = useState(1);
 
   const [activeRightTab, setActiveRightTab] = useState<
     "concept" | "source" | "evidence" | "inbox" | "review" | "tutor"
@@ -663,7 +901,13 @@ export default function App() {
   }
 
   const handleCyReady = useCallback((cy: cytoscape.Core | null) => {
+    if (atlasCyRef.current) {
+      atlasCyRef.current.removeListener("viewport");
+    }
     atlasCyRef.current = cy;
+    if (cy) {
+      cy.on("viewport", () => setDebugZoom(cy.zoom()));
+    }
   }, []);
 
   const focusConceptInGraph = useCallback((conceptId: string) => {
@@ -743,6 +987,38 @@ export default function App() {
       setGraphError(err instanceof Error ? err.message : "Failed to load graph");
     }
   }
+
+  useEffect(() => {
+    if (viewMode !== "lens" || !selectedConceptId) {
+      setLensData(null);
+      setLensError(null);
+      setLensLoading(false);
+      return;
+    }
+
+    let cancelled = false;
+    setLensLoading(true);
+    setLensError(null);
+
+    getGraphLens(selectedConceptId, lensRadius)
+      .then((res) => {
+        if (cancelled) return;
+        setLensData(res);
+      })
+      .catch((err: unknown) => {
+        if (cancelled) return;
+        setLensData(null);
+        setLensError(err instanceof Error ? err.message : "Failed to load lens");
+      })
+      .finally(() => {
+        if (cancelled) return;
+        setLensLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [viewMode, selectedConceptId, lensRadius]);
 
   useEffect(() => {
     const onPopState = () => {
@@ -1230,7 +1506,27 @@ export default function App() {
             </div>
 
           <div className="section">
-            <EdgeTypeFilter selected={selectedEdgeTypes} onToggle={toggleEdgeType} />
+            <label className="sectionTitle" htmlFor="edge-vis-mode-select">
+              Edge visibility
+            </label>
+            <select
+              id="edge-vis-mode-select"
+              className="searchInput"
+              value={edgeVisMode}
+              onChange={(e) => setEdgeVisMode(e.target.value as EdgeVisMode)}
+            >
+              <option value="filtered">Filtered (use checkboxes)</option>
+              <option value="all">All edges</option>
+              <option value="prereq_only">Prerequisites only</option>
+            </select>
+          </div>
+
+          <div className="section">
+            <EdgeTypeFilter
+              selected={selectedEdgeTypes}
+              onToggle={toggleEdgeType}
+              disabled={edgeVisMode !== "filtered"}
+            />
           </div>
 
           <div className="section" aria-label="Overlays">
@@ -1245,15 +1541,19 @@ export default function App() {
               Mastery overlay
             </label>
 
-            <label className="mutedText" htmlFor="focus-mode-toggle">
-              <input
-                id="focus-mode-toggle"
-                type="checkbox"
-                checked={focusModeEnabled}
-                onChange={(e) => setFocusModeEnabled(e.target.checked)}
-              />{" "}
-              Focus mode
+            <label className="mutedText" htmlFor="view-mode-select">
+              View mode
             </label>
+            <select
+              id="view-mode-select"
+              className="searchInput"
+              value={viewMode}
+              onChange={(e) => setViewMode(e.target.value as GraphViewMode)}
+            >
+              <option value="classic">Classic</option>
+              <option value="focus">Focus</option>
+              <option value="lens">Lens</option>
+            </select>
 
             <label className="mutedText" htmlFor="focus-depth-select">
               Focus depth
@@ -1269,6 +1569,33 @@ export default function App() {
               <option value={2}>2 hops</option>
               <option value={3}>3 hops</option>
             </select>
+
+            {viewMode === "lens" ? (
+              <>
+                <label className="mutedText" htmlFor="lens-radius-select">
+                  Lens radius
+                </label>
+                <select
+                  id="lens-radius-select"
+                  className="searchInput"
+                  value={lensRadius}
+                  onChange={(e) => setLensRadius(clampInt(Number(e.target.value), 1, 3))}
+                >
+                  <option value={1}>1 hop</option>
+                  <option value={2}>2 hops</option>
+                  <option value={3}>3 hops</option>
+                </select>
+                {lensLoading ? <p className="mutedText">Loading lens...</p> : null}
+                {lensError ? (
+                  <p role="alert" className="errorText">
+                    {lensError}
+                  </p>
+                ) : null}
+                {!selectedConceptId ? (
+                  <p className="mutedText">Select a concept to view its lens.</p>
+                ) : null}
+              </>
+            ) : null}
 
             <div className="buttonRow">
               <button
@@ -1338,10 +1665,31 @@ export default function App() {
                         {graphMode === "clustered" ? "Show full graph" : "Show clusters"}
                       </button>
                     ) : null}
+                    <button
+                      type="button"
+                      className="ghostButton"
+                      onClick={() => setDebugPanelOpen((v) => !v)}
+                    >
+                      {debugPanelOpen ? "Hide debug" : "Debug"}
+                    </button>
                   </div>
                 ) : (
                   <SkeletonBlock lines={1} />
                 )}
+                {debugPanelOpen && graph ? (
+                  <details className="debugPanel" open>
+                    <summary className="debugPanelSummary">Debug info</summary>
+                    <div className="debugPanelBody">
+                      <p>Nodes: {graph.nodes.length}</p>
+                      <p>Edges: {graph.edges.length}</p>
+                      <p>Visible nodes: {atlasCyRef.current?.nodes(":visible").length ?? "—"}</p>
+                      <p>Visible edges: {atlasCyRef.current?.edges(":visible").length ?? "—"}</p>
+                      <p>Zoom: {debugZoom.toFixed(3)}</p>
+                      <p>View mode: {viewMode}</p>
+                      <p>Edge vis: {edgeVisMode}</p>
+                    </div>
+                  </details>
+                ) : null}
               </div>
 
               <div className="atlasWrap">
@@ -1350,6 +1698,7 @@ export default function App() {
                     clusteredData={clusteredData}
                     graphMode={graphMode}
                     edgeTypeAllowlist={selectedEdgeTypes}
+                    edgeVisMode={edgeVisMode}
                     highlightConceptIds={tutorHighlightedConceptIds}
                     changesetHighlightConceptIds={changesetHighlightConceptIds}
                     masteryOverlayEnabled={masteryOverlayEnabled}
@@ -1357,6 +1706,8 @@ export default function App() {
                     pinnedConceptIds={pinnedConceptIds}
                     focusModeEnabled={focusModeEnabled}
                     focusDepth={focusDepth}
+                    viewMode={viewMode}
+                    lensData={lensData}
                     onSelectConcept={selectConcept}
                     onSelectEdge={selectEdge}
                     onCyReady={handleCyReady}

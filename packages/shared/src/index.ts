@@ -11,6 +11,9 @@ export {
   type PrerequisitePathResult
 } from "./learning-path";
 
+export { isPrereqEdge, getPrereqDirection } from "./edge-semantics";
+export { computeGraphLens, type GraphLensInput, type GraphLensResult } from "./graph-lens";
+
 export {
   ApiErrorSchema,
   type ApiError,
@@ -70,6 +73,14 @@ export {
   type Cluster,
   GraphClusteredResponseSchema,
   type GraphClusteredResponse,
+  GraphLensQuerySchema,
+  type GraphLensQuery,
+  GraphLensResponseSchema,
+  type GraphLensResponse,
+  LensSideSchema,
+  type LensSide,
+  LensNodeMetadataSchema,
+  type LensNodeMetadata,
   PostConceptRequestSchema,
   type PostConceptRequest,
   PostConceptResponseSchema,
@@ -239,7 +250,15 @@ export {
   PostSubmitTrainingAnswerResponseSchema,
   type PostSubmitTrainingAnswerResponse,
   PostCompleteTrainingSessionResponseSchema,
-  type PostCompleteTrainingSessionResponse
+  type PostCompleteTrainingSessionResponse,
+  GetConceptNoteResponseSchema,
+  type GetConceptNoteResponse,
+  PostConceptNoteRequestSchema,
+  type PostConceptNoteRequest,
+  PostConceptNoteResponseSchema,
+  type PostConceptNoteResponse,
+  GetConceptBacklinksResponseSchema,
+  type GetConceptBacklinksResponse
 } from "./schemas/api-v1";
 
 export { getConcept, getGraph } from "./api/client";
