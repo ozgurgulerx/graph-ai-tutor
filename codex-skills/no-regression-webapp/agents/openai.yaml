@@ -1,0 +1,5 @@
+interface:
+  display_name: "No Regression Webapp"
+  short_description: "Enforce no-regression workflow for web app changes"
+  default_prompt: "Apply the no-regression workflow: keep diffs small, keep main runnable, add/adjust tests, run pnpm lint/typecheck/test (and pnpm e2e when UI is touched), require migrations for DB schema changes, update packages/shared Zod schemas for API contract changes, forbid TODOs, and report commands/results."
+

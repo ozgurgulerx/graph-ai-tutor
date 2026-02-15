@@ -1,0 +1,20 @@
+.DS_Store
+
+# Node / tooling
+node_modules/
+dist/
+build/
+coverage/
+.turbo/
+.vite/
+.pnpm-store/
+test-results/
+playwright-report/
+
+# Local env
+.env
+.env.*
+*.log
+
+# Local-first data
+data/
