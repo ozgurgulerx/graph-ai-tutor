@@ -123,6 +123,46 @@ describe("createOpenAIResponsesClient", () => {
     expect(output[0].content[0].text).toBe('{"answer":"hello"}');
   });
 
+  it("uses api-key header when AZURE_OPENAI_API_KEY is set", async () => {
+    let seenInit:
+      | {
+          method?: string;
+          headers?: Record<string, string>;
+          body?: string;
+        }
+      | undefined;
+
+    const client = createOpenAIResponsesClient({
+      env: {
+        AZURE_OPENAI_ENDPOINT: "https://myresource.openai.azure.com",
+        AZURE_OPENAI_API_KEY: "my-azure-key"
+      } as NodeJS.ProcessEnv,
+      fetch: async (_input, init) => {
+        seenInit = init;
+        return {
+          ok: true,
+          status: 200,
+          async json() {
+            return {
+              choices: [
+                { message: { content: '{"answer":"hello"}' } }
+              ]
+            };
+          },
+          async text() {
+            return "";
+          }
+        };
+      }
+    });
+
+    await client.create({ model: "gpt-4o", input: "hi" });
+
+    expect(seenInit?.headers?.["api-key"]).toBe("my-azure-key");
+    expect(seenInit?.headers?.Authorization).toBeUndefined();
+    expect(seenInit?.headers?.["Content-Type"]).toBe("application/json");
+  });
+
   it("throws when no credentials are provided", () => {
     expect(() =>
       createOpenAIResponsesClient({
