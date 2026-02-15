@@ -1,5 +1,4 @@
 import { EditorState } from "@codemirror/state";
-import "@codemirror/view/style.css";
 import { EditorView, keymap } from "@codemirror/view";
 import { markdown } from "@codemirror/lang-markdown";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -63,7 +62,7 @@ function parseBlocks(content: string): Array<
       continue;
     }
 
-    const heading = line.match(/^(#{1,6})\\s+(.+)$/);
+    const heading = line.match(/^(#{1,6})\s+(.+)$/);
     if (heading) {
       flushParagraph();
       blocks.push({
@@ -75,7 +74,7 @@ function parseBlocks(content: string): Array<
       continue;
     }
 
-    const img = line.trim().match(/^!\\[([^\\]]*)\\]\\(([^)]+)\\)\\s*$/);
+    const img = line.trim().match(/^!\[([^\]]*)\][(]([^)]+)[)]\s*$/);
     if (img) {
       flushParagraph();
       blocks.push({ type: "image", alt: img[1] ?? "", url: img[2] ?? "" });

@@ -1,4 +1,4 @@
-export { createOpenAiCaptureLlm, type CaptureLlm } from "./llm";
+export { createOpenAiCaptureLlm, createTestCaptureLlm, type CaptureLlm } from "./llm";
 export { runCaptureJob, type CaptureJobResult } from "./job";
 export {
   CaptureProposalSchema,

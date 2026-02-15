@@ -1,7 +1,9 @@
 import { expect, test } from "@playwright/test";
 
+import { E2E_API_BASE_URL } from "./e2e-ports";
+
 test("selecting an edge shows its evidence chunks", async ({ page }) => {
-  const edgeRes = await page.request.post("http://127.0.0.1:3000/edge", {
+  const edgeRes = await page.request.post(`${E2E_API_BASE_URL}/edge`, {
     data: {
       fromConceptId: "genai.systems_inference.kvcache.kv_cache",
       toConceptId: "genai.models.transformer.attention.self_attention",

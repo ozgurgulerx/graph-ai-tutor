@@ -5,6 +5,7 @@ import { fileURLToPath } from "node:url";
 
 import { ensureSeedFromFile, openDb } from "@graph-ai-tutor/db";
 
+import { createTestCaptureLlm } from "./capture";
 import { createTestDistillLlm } from "./distill";
 import { buildServer } from "./server";
 import type { VaultWatcher } from "./watcher";
@@ -76,13 +77,17 @@ async function main() {
     : await openDb({ pool: await createMemPool() });
   await ensureSeedFromFile(db, seedPath);
 
+  const captureLlm = process.env.NODE_ENV === "test" ? createTestCaptureLlm() : undefined;
   const distillLlm = process.env.NODE_ENV === "test" ? createTestDistillLlm() : undefined;
 
   const reindexBus = new EventEmitter();
   const vaultDir = process.env.VAULT_DIR;
 
-  const vaultRoot = vaultDir ?? path.join(repoRoot, "vault");
-  const app = buildServer({ repos: db, distillLlm, reindexBus, vaultRoot });
+  // Keep the repo `vault/` as the canonical, checked-in example.
+  // Allow tests/e2e to redirect file IO to an ignored `data/` folder.
+  const vaultRoot =
+    vaultDir ?? process.env.GRAPH_AI_TUTOR_VAULT_DIR ?? path.join(repoRoot, "vault");
+  const app = buildServer({ repos: db, captureLlm, distillLlm, reindexBus, vaultRoot });
 
   let watcher: VaultWatcher | null = null;
 

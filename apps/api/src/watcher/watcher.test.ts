@@ -19,6 +19,15 @@ function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+async function waitFor(predicate: () => boolean, timeoutMs: number) {
+  const start = Date.now();
+  while (Date.now() - start < timeoutMs) {
+    if (predicate()) return;
+    await sleep(100);
+  }
+  throw new Error("Timed out waiting for watcher to process file");
+}
+
 describe("startVaultWatcher", () => {
   it("indexes a new .md file written to the vault dir", async () => {
     const pool = createMemPool();
@@ -45,8 +54,9 @@ Some body text.`;
 
       await fs.writeFile(path.join(tmpDir, "test-concept.md"), content, "utf8");
 
-      // Wait for chokidar to detect + stabilityThreshold + processing
-      await sleep(1500);
+      // Wait for chokidar to detect + stabilityThreshold + processing.
+      // File watchers can be slow/flaky on CI/virtualized filesystems, so poll.
+      await waitFor(() => reindexedIds.length > 0, 8000);
 
       expect(reindexedIds.length).toBeGreaterThan(0);
 

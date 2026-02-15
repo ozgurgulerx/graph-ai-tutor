@@ -152,14 +152,22 @@ async function resolveConceptId(repos: Repositories, id: string): Promise<string
 }
 
 function titleFromMarkdown(content: string): string | null {
+  // Prefer the first markdown heading anywhere in the document.
+  // Ensure we never return multi-line titles, even if the content contains unexpected line separators.
+  const headingMatch = content.match(/^#{1,6}\s+([^\r\n]+)\s*$/m);
+  if (headingMatch) {
+    const title = headingMatch[1]?.trim();
+    if (title) return title;
+  }
+
+  // Fallback: first non-empty line (useful for plain-text notes).
   for (const raw of content.split(/\r?\n/)) {
     const line = raw.trim();
     if (!line) continue;
-    const m = line.match(/^#{1,6}\\s+(.+)$/);
-    if (!m) return null;
-    const title = m[1]?.trim();
-    return title ? title : null;
+    if (line === "---") continue; // ignore frontmatter fences
+    return line;
   }
+
   return null;
 }
 

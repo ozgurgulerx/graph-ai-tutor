@@ -416,7 +416,7 @@ describe("API v1", () => {
 
       const abs = resolveVaultUrlToPath(created.source.url).absPath;
       const content = await fs.readFile(abs, "utf8");
-      expect(content).toMatch(/^#\\s+KV cache notes/m);
+      expect(content).toMatch(/^#\s+KV cache notes/m);
     } finally {
       await app.close();
       await db.close();
@@ -450,7 +450,7 @@ describe("API v1", () => {
       });
       expect(getRes.statusCode).toBe(200);
       const fetched = GetSourceContentResponseSchema.parse(json(getRes));
-      expect(fetched.content).toMatch(/^#\\s+A notes/m);
+      expect(fetched.content).toMatch(/^#\s+A notes/m);
 
       const nextContent = [
         "# New title",
@@ -461,7 +461,7 @@ describe("API v1", () => {
         "console.log('hi')",
         "```",
         ""
-      ].join("\\n");
+      ].join("\n");
 
       const saveRes = await app.inject({
         method: "POST",
@@ -796,7 +796,7 @@ describe("API v1", () => {
 
   it("Changeset patch flow: accept hunk, apply writes file, and updates file index", async () => {
     const vaultRoot = await fs.mkdtemp(path.join(os.tmpdir(), "graph-ai-tutor-vault-"));
-    await fs.writeFile(path.join(vaultRoot, "note.md"), "hello\\nworld\\n", "utf8");
+    await fs.writeFile(path.join(vaultRoot, "note.md"), "hello\nworld\n", "utf8");
 
     const { app, db } = await createTestApp({ vaultRoot });
     try {
@@ -809,7 +809,7 @@ describe("API v1", () => {
         status: "pending",
         payload: {
           filePath: "note.md",
-          unifiedDiff: "@@ -1,2 +1,2 @@\\n hello\\n-world\\n+there\\n"
+          unifiedDiff: ["@@ -1,2 +1,2 @@", " hello", "-world", "+there"].join("\n")
         }
       });
 
@@ -832,10 +832,10 @@ describe("API v1", () => {
       expect(applied.applied.edgeIds).toEqual([]);
 
       const updated = await fs.readFile(path.join(vaultRoot, "note.md"), "utf8");
-      expect(updated).toBe("hello\\nthere\\n");
+      expect(updated).toBe("hello\nthere\n");
 
       const indexed = await db.vaultFile.getByPath("note.md");
-      expect(indexed?.content).toBe("hello\\nthere\\n");
+      expect(indexed?.content).toBe("hello\nthere\n");
 
       const item = await db.changesetItem.getById("changeset_item_patch_1");
       expect(item?.status).toBe("applied");

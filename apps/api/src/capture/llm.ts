@@ -16,6 +16,32 @@ export type CaptureLlm = {
   propose: (input: CaptureInput) => Promise<unknown>;
 };
 
+export function createTestCaptureLlm(): CaptureLlm {
+  return {
+    async propose(input: CaptureInput): Promise<unknown> {
+      // Keep fixtures deterministic and avoid touching the existing concept table.
+      // The capture job will wrap this proposal in a changeset for review.
+      return {
+        concepts: [
+          {
+            id: "concept_gradient_checkpointing",
+            title: "Gradient checkpointing",
+            l0: "Trade compute for memory by recomputing activations during the backward pass.",
+            l1: [
+              "Recompute some activations during backward instead of storing them",
+              "Reduces activation memory at the cost of extra compute"
+            ],
+            module: null,
+            evidence: input.text.slice(0, 200),
+            confidence: 0.72
+          }
+        ],
+        edges: []
+      };
+    }
+  };
+}
+
 export function createOpenAiCaptureLlm(options: {
   apiKey?: string;
   baseUrl?: string;

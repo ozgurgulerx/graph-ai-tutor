@@ -17,9 +17,20 @@ test("mastery overlay toggles mastery bucket classes on atlas nodes", async ({ p
       const maybe = (window as unknown as { __CY__?: unknown }).__CY__;
       if (!maybe) throw new Error("Missing window.__CY__");
 
-      const cy = maybe as { nodes: () => Array<{ hasClass: (name: string) => boolean }> };
-      const node = cy.nodes()[0];
-      if (!node) throw new Error("No nodes found");
+      const cy = maybe as {
+        nodes: () => {
+          forEach: (fn: (n: { hasClass: (name: string) => boolean; data: (k: string) => unknown }) => void) => void;
+        };
+      };
+
+      let node: { hasClass: (name: string) => boolean } | null = null;
+      cy.nodes().forEach((n) => {
+        if (node) return;
+        // In clustered mode, Cytoscape includes parent "cluster:*" nodes that do not have mastery classes.
+        if (n.data("isCluster")) return;
+        node = n;
+      });
+      if (!node) throw new Error("No concept nodes found");
       return (
         node.hasClass("masteryLow") || node.hasClass("masteryMid") || node.hasClass("masteryHigh")
       );
@@ -34,4 +45,3 @@ test("mastery overlay toggles mastery bucket classes on atlas nodes", async ({ p
   await toggle.uncheck();
   expect(await hasMasteryClass()).toBe(false);
 });
-

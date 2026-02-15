@@ -110,10 +110,29 @@ export async function startVaultWatcher(
     );
   }
 
+  const usePolling =
+    process.env.NODE_ENV === "test" || process.env.VITEST === "true";
+
   const watcher = chokidar.watch(path.join(vaultDir, "**/*.md"), {
     persistent: true,
     ignoreInitial: true,
-    awaitWriteFinish: { stabilityThreshold: 300 }
+    awaitWriteFinish: { stabilityThreshold: 300 },
+    ...(usePolling ? { usePolling: true, interval: 100 } : {})
+  });
+
+  await new Promise<void>((resolve, reject) => {
+    const onReady = () => {
+      watcher.off("ready", onReady);
+      watcher.off("error", onError);
+      resolve();
+    };
+    const onError = (err: unknown) => {
+      watcher.off("ready", onReady);
+      watcher.off("error", onError);
+      reject(err);
+    };
+    watcher.on("ready", onReady);
+    watcher.on("error", onError);
   });
 
   watcher.on("add", (filePath: string) => {

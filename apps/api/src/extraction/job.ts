@@ -101,8 +101,11 @@ export async function runExtractionJob(input: {
 
   const changeset = await input.repos.changeset.create({ sourceId: input.sourceId, status: "draft" });
 
-  for (const concept of candidates.concepts) {
+  // Use deterministic item ids so list ordering is stable even when created_at ties (ms resolution).
+  // This keeps tests and the Inbox UI deterministic.
+  for (const [idx, concept] of candidates.concepts.entries()) {
     await input.repos.changesetItem.create({
+      id: `changeset_item_${changeset.id}_c_${String(idx).padStart(4, "0")}`,
       changesetId: changeset.id,
       entityType: "concept",
       action: "create",
@@ -110,8 +113,10 @@ export async function runExtractionJob(input: {
     });
   }
 
-  for (const edge of candidates.edges) {
+  const edgeOffset = candidates.concepts.length;
+  for (const [idx, edge] of candidates.edges.entries()) {
     await input.repos.changesetItem.create({
+      id: `changeset_item_${changeset.id}_e_${String(edgeOffset + idx).padStart(4, "0")}`,
       changesetId: changeset.id,
       entityType: "edge",
       action: "create",

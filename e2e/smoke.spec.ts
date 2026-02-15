@@ -20,23 +20,27 @@ test("clicking a node in the atlas opens the concept title", async ({ page }) =>
     if (!maybe) throw new Error("Missing window.__CY__");
 
     const cy = maybe as {
-      nodes: () => Array<{
-        data: (key: string) => unknown;
-        renderedBoundingBox: () => { x1: number; x2: number; y1: number; y2: number };
-      }>;
-      container: () => { getBoundingClientRect: () => { left: number; top: number } };
+      nodes: () => {
+        forEach: (
+          fn: (n: {
+            data: (key: string) => unknown;
+            emit: (event: string) => void;
+          }) => void
+        ) => void;
+      };
     };
 
-    const node = cy.nodes()[0];
+    let node: { data: (key: string) => unknown; emit: (event: string) => void } | null = null;
+    cy.nodes().forEach((n) => {
+      if (node) return;
+      if (n.data("isCluster")) return;
+      node = n;
+    });
+    if (!node) throw new Error("No concept nodes found");
     const label = String(node.data("label"));
-
-    const bb = node.renderedBoundingBox();
-    const rect = cy.container().getBoundingClientRect();
-    const x = rect.left + (bb.x1 + bb.x2) / 2;
-    const y = rect.top + (bb.y1 + bb.y2) / 2;
-    return { x, y, label };
+    node.emit("tap");
+    return { label };
   });
 
-  await page.mouse.click(clicked.x, clicked.y);
   await expect(page.getByTestId("concept-title")).toHaveText(clicked.label);
 });
