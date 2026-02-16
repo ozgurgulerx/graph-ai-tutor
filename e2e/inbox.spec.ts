@@ -22,14 +22,12 @@ test("apply a changeset adds a node visible on the atlas", async ({ page }) => {
     await apply.click();
   }
 
-  await expect(page.getByRole("button", { name: /paged attention/i })).toBeVisible({
-    timeout: 10_000
-  });
-
   await page.waitForFunction(() => {
     const cy = (window as unknown as { __CY__?: unknown }).__CY__;
     if (!cy) return false;
     const nodes = (cy as { nodes: () => Array<{ data: (key: string) => unknown }> }).nodes();
-    return nodes.some((n) => String(n.data("label")).toLowerCase() === "paged attention");
+    return nodes.some(
+      (n) => String(n.data("id")) === "genai.systems_inference.attention.pagedattention"
+    );
   });
 });

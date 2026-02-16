@@ -30,7 +30,7 @@ test("command palette filters actions by query", async ({ page }) => {
   await expect(page.getByText("Start training session")).toBeVisible();
 
   await input.fill("zzzzz");
-  await expect(page.getByText("No matching actions")).toBeVisible();
+  await expect(page.getByText("No results")).toBeVisible();
 
   await page.keyboard.press("Escape");
 });

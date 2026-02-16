@@ -379,4 +379,23 @@ describe("ConceptWorkspace", () => {
     fireEvent.click(screen.getByTestId("tab-summary"));
     expect(screen.getByTestId("tab-summary")).toHaveClass("tabActive");
   });
+
+  it("shows helper text explaining L0/L1/L2 levels", async () => {
+    const concept = makeConcept({ title: "KV cache" });
+
+    render(
+      <ConceptWorkspace
+        concept={concept}
+        onSave={vi.fn(async () => concept)}
+        onConceptUpdated={vi.fn()}
+      />
+    );
+
+    expect(screen.getByTestId("summary-levels-help")).toHaveTextContent(
+      /summary levels, not graph neighborhood depth/i
+    );
+    expect(screen.getByText(/one-line definition \(quick recall\)/i)).toBeInTheDocument();
+    expect(screen.getByText(/key bullets \(what matters most\)/i)).toBeInTheDocument();
+    expect(screen.getByText(/deeper mechanism\/steps \(how it works\)/i)).toBeInTheDocument();
+  });
 });

@@ -50,6 +50,8 @@ import {
   PostDraftRevisionApplyResponseSchema,
   PostDraftRevisionRejectResponseSchema,
   PostDraftRevisionRevertResponseSchema,
+  PostDraftEdgeRequestSchema,
+  PostDraftEdgeResponseSchema,
   PostEdgeRequestSchema,
   PostEdgeResponseSchema,
   PostGenerateConceptQuizzesRequestSchema,
@@ -430,13 +432,58 @@ function registerApiRoutes(
     }
 
     const ids = Array.from(seen);
-    const nodes = await deps.repos.concept.listSummariesByIds(ids);
-    const edgeCandidates = await deps.repos.edge.listSummariesByConceptIds(ids, 50_000);
-    const edges = edgeCandidates.filter(
-      (e) => allowEdgeType(e.type) && seen.has(e.fromConceptId) && seen.has(e.toConceptId)
-    );
+    let nodes = await deps.repos.concept.listSummariesByIds(ids);
 
-    const payload = { nodes, edges };
+    // Use confidence-aware edge query when caps are active
+    const hasCaps = query.maxNodes != null || query.maxEdges != null;
+    let edges: { id: string; fromConceptId: string; toConceptId: string; type: string }[];
+    let capped = false;
+
+    if (hasCaps) {
+      const edgesWithConf = await deps.repos.edge.listSummariesByConceptIdsWithConfidence(ids, 50_000);
+      let filteredEdges = edgesWithConf.filter(
+        (e) => allowEdgeType(e.type) && seen.has(e.fromConceptId) && seen.has(e.toConceptId)
+      );
+
+      // Cap edges by confidence
+      if (query.maxEdges != null && filteredEdges.length > query.maxEdges) {
+        filteredEdges.sort((a, b) => (b.confidence ?? -1) - (a.confidence ?? -1));
+        filteredEdges = filteredEdges.slice(0, query.maxEdges);
+        capped = true;
+      }
+
+      // Cap nodes by degree (center always kept first)
+      if (query.maxNodes != null && nodes.length > query.maxNodes) {
+        const degree = new Map<string, number>();
+        for (const e of filteredEdges) {
+          degree.set(e.fromConceptId, (degree.get(e.fromConceptId) ?? 0) + 1);
+          degree.set(e.toConceptId, (degree.get(e.toConceptId) ?? 0) + 1);
+        }
+        nodes.sort((a, b) => {
+          if (a.id === centerId) return -1;
+          if (b.id === centerId) return 1;
+          return (degree.get(b.id) ?? 0) - (degree.get(a.id) ?? 0);
+        });
+        nodes = nodes.slice(0, query.maxNodes);
+        const keptIds = new Set(nodes.map((n) => n.id));
+        filteredEdges = filteredEdges.filter(
+          (e) => keptIds.has(e.fromConceptId) && keptIds.has(e.toConceptId)
+        );
+        capped = true;
+      }
+
+      // Strip confidence from response edges
+      edges = filteredEdges.map(({ id, fromConceptId, toConceptId, type }) => ({
+        id, fromConceptId, toConceptId, type
+      }));
+    } else {
+      const edgeCandidates = await deps.repos.edge.listSummariesByConceptIds(ids, 50_000);
+      edges = edgeCandidates.filter(
+        (e) => allowEdgeType(e.type) && seen.has(e.fromConceptId) && seen.has(e.toConceptId)
+      );
+    }
+
+    const payload = { nodes, edges, capped };
     const validated = parseOr400(reply, GraphResponseSchema, payload);
     if (!validated) return;
     graphCache.set(cacheKey, validated);
@@ -1572,6 +1619,82 @@ function registerApiRoutes(
         return;
       }
       sendError(reply, 400, "REVERT_FAILED", message, { id: params.revisionId });
+      app.log.error(err);
+      return;
+    }
+  });
+
+  app.post("/changeset/edge-draft", async (req, reply) => {
+    const body = parseOr400(reply, PostDraftEdgeRequestSchema, req.body);
+    if (!body) return;
+
+    const fromId = await resolveConceptId(deps.repos, body.fromConceptId);
+    if (!fromId) {
+      sendError(reply, 404, "NOT_FOUND", "fromConceptId not found", { id: body.fromConceptId });
+      return;
+    }
+
+    const toId = await resolveConceptId(deps.repos, body.toConceptId);
+    if (!toId) {
+      sendError(reply, 404, "NOT_FOUND", "toConceptId not found", { id: body.toConceptId });
+      return;
+    }
+
+    if (fromId === toId) {
+      sendError(reply, 400, "EDGE_SELF_LOOP", "fromConceptId and toConceptId must differ");
+      return;
+    }
+
+    if (body.type === "PREREQUISITE_OF") {
+      const allEdges = await deps.repos.edge.listSummaries();
+      const check = wouldCreatePrereqCycle({
+        fromConceptId: fromId,
+        toConceptId: toId,
+        existingEdges: allEdges
+      });
+      if (check.wouldCycle) {
+        sendError(
+          reply,
+          409,
+          "EDGE_WOULD_CYCLE",
+          "Adding this edge would create a cycle in the prerequisite chain"
+        );
+        return;
+      }
+    }
+
+    try {
+      const changeset = await deps.repos.changeset.create({ status: "draft" });
+      await deps.repos.changesetItem.create({
+        changesetId: changeset.id,
+        entityType: "edge",
+        action: "create",
+        status: "pending",
+        payload: {
+          fromConceptId: fromId,
+          toConceptId: toId,
+          type: body.type,
+          sourceUrl: body.sourceUrl ?? null,
+          confidence: body.confidence ?? null,
+          verifierScore: body.verifierScore ?? null,
+          evidenceChunkIds: body.evidenceChunkIds
+        }
+      });
+
+      const [item] = await deps.repos.changesetItem.listByChangesetId(changeset.id);
+      if (!item) {
+        sendError(reply, 500, "CHANGESET_ITEM_CREATE_FAILED", "Failed to stage draft edge");
+        return;
+      }
+
+      const validated = parseOr400(reply, PostDraftEdgeResponseSchema, {
+        changeset,
+        item
+      });
+      if (!validated) return;
+      return validated;
+    } catch (err) {
+      sendError(reply, 400, "CHANGESET_CREATE_FAILED", "Failed to stage draft edge");
       app.log.error(err);
       return;
     }

@@ -27,6 +27,26 @@ body {
   font-size: 1.25rem;
 }
 
+.topbarCountButton {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.topbarCountBadge {
+  min-width: 1.5rem;
+  height: 1.5rem;
+  border-radius: 999px;
+  padding: 0 0.4rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: #0f172a;
+  color: #ffffff;
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
 .shell {
   display: grid;
   grid-template-columns: 280px 6px 1fr 6px 360px;
@@ -37,6 +57,50 @@ body {
   padding: 1rem;
   overflow: auto;
   min-width: 0;
+}
+
+.leftPane {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.leftTabBar {
+  display: flex;
+  border-bottom: 1px solid #e2e8f0;
+  margin-bottom: 0.75rem;
+  position: sticky;
+  top: 0;
+  background: #ffffff;
+  z-index: 1;
+}
+
+.leftTab {
+  flex: 1;
+  padding: 0.5rem 0;
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: #64748b;
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  cursor: pointer;
+  transition: color 0.15s, border-color 0.15s;
+}
+
+.leftTab:hover {
+  color: #0f172a;
+}
+
+.leftTab.active {
+  color: #0f172a;
+  border-bottom-color: #3b82f6;
+}
+
+.leftTabContent {
+  flex: 1;
+  overflow-y: auto;
+  min-height: 0;
 }
 
 
@@ -204,6 +268,73 @@ body {
   white-space: nowrap;
 }
 
+/* --- Concept Tree --- */
+
+.conceptTree {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.conceptTree ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.treeRow {
+  display: flex;
+  align-items: center;
+  gap: 0;
+}
+
+.treeDisclosure {
+  width: 1.25rem;
+  height: 1.25rem;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  background: none;
+  color: #94a3b8;
+  cursor: pointer;
+  font-size: 0.75rem;
+  padding: 0;
+  border-radius: 3px;
+}
+
+.treeDisclosure:hover {
+  color: #475569;
+  background: #f1f5f9;
+}
+
+.treeDisclosurePlaceholder {
+  width: 1.25rem;
+  flex-shrink: 0;
+}
+
+.treeNodeButton {
+  flex: 1;
+  min-width: 0;
+}
+
+.treeChildren {
+  padding-left: 1.25rem;
+  border-left: 1px solid #e2e8f0;
+  margin-left: 0.625rem;
+}
+
+.treeGroupLabel {
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #94a3b8;
+  padding: 0.375rem 0.5rem;
+  cursor: default;
+}
+
 .mutedText {
   color: #64748b;
 }
@@ -233,8 +364,13 @@ body {
 .atlasWrap {
   flex: 1;
   min-height: 0;
+  position: relative;
   background: radial-gradient(1200px 600px at 50% 0%, #eef2ff 0%, #ffffff 60%);
 }
+
+/* Pan mode cursor */
+.atlasWrap--panMode .atlas { cursor: grab; }
+.atlasWrap--panMode .atlas:active { cursor: grabbing; }
 
 .atlas {
   width: 100%;
@@ -877,6 +1013,16 @@ body {
   z-index: 100;
 }
 
+.shortcutsHelpOverlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.35);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1200;
+}
+
 .modalContent {
   background: #ffffff;
   border-radius: 16px;
@@ -889,6 +1035,89 @@ body {
   flex-direction: column;
   gap: 0.75rem;
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
+}
+
+.shortcutsHelpPanel {
+  width: 520px;
+  max-height: 85vh;
+  overflow: auto;
+  box-shadow: 0 12px 36px rgba(15, 23, 42, 0.22);
+}
+
+.shortcutsHelpHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.shortcutsHelpHeader h2 {
+  margin: 0;
+  font-size: 1.05rem;
+}
+
+.shortcutsHelpList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.5rem;
+}
+
+.shortcutsHelpList li {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 0.55rem 0.7rem;
+  font-size: 0.875rem;
+  color: #334155;
+}
+
+.shortcutsHelpList strong {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+  margin-right: 0.35rem;
+}
+
+.workbenchOverlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.28);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.5rem;
+  z-index: 110;
+}
+
+.workbenchPanel {
+  width: min(980px, 100%);
+  max-height: calc(100vh - 3rem);
+  background: #ffffff;
+  border: 1px solid #dbe4ef;
+  border-radius: 16px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  box-shadow: 0 22px 48px rgba(15, 23, 42, 0.2);
+}
+
+.workbenchHeader {
+  padding: 0.9rem 1.1rem;
+  border-bottom: 1px solid #e2e8f0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.workbenchHeader h3 {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.workbenchBody {
+  min-height: 0;
+  overflow: auto;
 }
 
 .impactRadius {
@@ -1184,6 +1413,234 @@ body {
   margin: 0.15rem 0;
 }
 
+.debugFlagsSection {
+  margin-top: 0.5rem;
+  padding-top: 0.5rem;
+  border-top: 1px dashed #cbd5e1;
+}
+
+.debugFlagsTitle {
+  font-weight: 600;
+  color: #334155;
+  margin-bottom: 0.2rem;
+}
+
+.debugFlagRow {
+  display: block;
+  margin: 0.2rem 0;
+  color: #475569;
+}
+
+.debugFlagsActions {
+  margin-top: 0.35rem;
+}
+
+.rightPaneV2Preview {
+  margin-bottom: 0.4rem;
+  padding: 0.35rem 0.5rem;
+  border: 1px dashed #cbd5e1;
+  border-radius: 8px;
+  color: #475569;
+  background: #f8fafc;
+  font-size: 0.75rem;
+}
+
+.conceptInspectorV2 {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.conceptHeaderV2 {
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 0.75rem;
+  background: #ffffff;
+}
+
+.conceptInspectorActions {
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.inspectorAccordionSection {
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  background: #ffffff;
+}
+
+.inspectorAccordionToggle {
+  width: 100%;
+  border: none;
+  background: transparent;
+  text-align: left;
+  font: inherit;
+  font-weight: 700;
+  color: #0f172a;
+  padding: 0.65rem 0.75rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.inspectorAccordionBody {
+  border-top: 1px solid #e2e8f0;
+  padding: 0.75rem;
+}
+
+.conceptInlineEditorActions {
+  margin-bottom: 0.5rem;
+}
+
+.conceptNotesV2 {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.conceptNotesV2List {
+  margin-top: 0;
+}
+
+.conceptNotesV2Link {
+  margin-right: 0.5rem;
+}
+
+.conceptNotesV2LinkActive {
+  font-weight: 800;
+}
+
+.conceptNotesV2Meta {
+  font-size: 0.75rem;
+}
+
+.relationshipsPanel {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.relationshipsGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+
+.relationshipsList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.relationshipsRowButton {
+  width: 100%;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  background: #ffffff;
+  padding: 0.45rem 0.55rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  cursor: pointer;
+}
+
+.relationshipsRowButton:hover {
+  border-color: #cbd5e1;
+  background: #f8fafc;
+}
+
+.relationshipsRowTitle {
+  font-weight: 600;
+  color: #0f172a;
+}
+
+.relationshipsRowMeta {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.edgeTypeBadge {
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid #cbd5e1;
+  border-radius: 999px;
+  background: #f8fafc;
+  color: #334155;
+  padding: 0.1rem 0.45rem;
+  font-size: 0.68rem;
+  font-weight: 700;
+}
+
+.relationshipsComposer {
+  border-top: 1px dashed #cbd5e1;
+  padding-top: 0.7rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+}
+
+.relationshipsTargetResults {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.relationshipsTargetOption {
+  width: 100%;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #0f172a;
+  text-align: left;
+  font: inherit;
+  padding: 0.4rem 0.5rem;
+  cursor: pointer;
+}
+
+.relationshipsTargetOption:hover {
+  border-color: #cbd5e1;
+}
+
+.relationshipsTargetOptionActive {
+  border-color: #2563eb;
+  background: #eff6ff;
+}
+
+.relationshipsDirectionFieldset {
+  border: none;
+  margin: 0;
+  padding: 0;
+}
+
+.relationshipsDirectionRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.snackbar {
+  position: fixed;
+  bottom: 1rem;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 220;
+  background: #0f172a;
+  color: #f8fafc;
+  border-radius: 999px;
+  padding: 0.45rem 0.8rem;
+  font-size: 0.8rem;
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.28);
+}
+
 /* --- Disabled Edge Filter --- */
 
 .edge-filter--disabled {
@@ -1278,6 +1735,43 @@ body.panel-dragging iframe {
   text-align: center;
 }
 
+/* --- Graph Nav Toolbar --- */
+
+.graphNavToolbar {
+  position: absolute;
+  bottom: 1rem;
+  left: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  background: rgba(255, 255, 255, 0.95);
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 4px;
+  z-index: 10;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+.graphNavToolbar__btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: #475569;
+  cursor: pointer;
+  padding: 0;
+}
+
+.graphNavToolbar__btn:hover { background: #f1f5f9; color: #0f172a; }
+.graphNavToolbar__btn--active { background: #e0e7ff; color: #2563eb; }
+.graphNavToolbar__btn--active:hover { background: #c7d2fe; color: #1d4ed8; }
+.graphNavToolbar__btn svg { width: 18px; height: 18px; }
+.graphNavToolbar__separator { height: 1px; background: #e2e8f0; margin: 2px 0; }
+
 /* --- Lens Edit Toolbar --- */
 
 .lensEditToolbar {
@@ -1303,6 +1797,80 @@ body.panel-dragging iframe {
 .lensEditToolbar__error {
   font-size: 0.8rem;
   color: #b91c1c;
+}
+
+/* --- Explore Toolbar --- */
+
+.exploreToolbar {
+  position: absolute;
+  top: 0.75rem;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
+  background: rgba(255, 255, 255, 0.95);
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 0.4rem 0.75rem;
+  z-index: 10;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+.exploreToolbar__center {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #1e293b;
+  max-width: 200px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* --- On-Demand Explore Overlays --- */
+
+.onDemandOverlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(248, 250, 252, 0.8);
+  color: #64748b;
+  font-size: 1.1rem;
+  font-weight: 500;
+  z-index: 5;
+  pointer-events: none;
+}
+
+.onDemandLoading {
+  position: absolute;
+  top: 3.5rem;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #3b82f6;
+  color: #fff;
+  font-size: 0.8rem;
+  font-weight: 500;
+  padding: 0.3rem 1rem;
+  border-radius: 999px;
+  z-index: 11;
+  box-shadow: 0 2px 8px rgba(59, 130, 246, 0.3);
+}
+
+.cappedBanner {
+  position: absolute;
+  bottom: 1rem;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(245, 158, 11, 0.9);
+  color: #fff;
+  font-size: 0.8rem;
+  font-weight: 500;
+  padding: 0.3rem 1rem;
+  border-radius: 999px;
+  z-index: 11;
+  box-shadow: 0 2px 8px rgba(245, 158, 11, 0.3);
 }
 
 /* --- Edge Type Picker --- */
@@ -1388,4 +1956,64 @@ body.panel-dragging iframe {
 .edgeTypePickerItem:hover,
 .edgeTypePickerItemSelected {
   background: #f1f5f9;
+}
+
+/* --- Tutor Drawer --- */
+
+.tutorDrawer {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 120;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  pointer-events: none;
+}
+
+.tutorDrawerToggle {
+  pointer-events: auto;
+  border: 1px solid #cbd5e1;
+  border-bottom: none;
+  background: #ffffff;
+  border-radius: 10px 10px 0 0;
+  padding: 0.35rem 0.75rem;
+  min-width: 220px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  color: #334155;
+  box-shadow: 0 -2px 8px rgba(15, 23, 42, 0.08);
+  cursor: pointer;
+}
+
+.tutorDrawerToggleTitle {
+  font-weight: 600;
+  font-size: 0.8125rem;
+}
+
+.tutorDrawerToggleHint {
+  color: #64748b;
+  font-size: 0.75rem;
+}
+
+.tutorDrawerPanel {
+  pointer-events: auto;
+  width: min(980px, 96vw);
+  max-height: 48vh;
+  overflow: auto;
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  border-top: none;
+  border-radius: 10px 10px 0 0;
+  box-shadow: 0 -4px 18px rgba(15, 23, 42, 0.14);
+  padding: 0.65rem 0.85rem 0.85rem;
+}
+
+.tutorDrawerHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.5rem;
 }

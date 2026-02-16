@@ -7,6 +7,7 @@ cytoscape.use(fcose);
 import {
   getDefaultEdgeTypes,
   type Concept,
+  type PostDraftEdgeRequest,
   type EdgeType,
   type EdgeTypeCategory,
   type GetEdgeEvidenceResponse,
@@ -19,17 +20,20 @@ import {
 
 import {
   getConceptCached,
+  getChangesets,
   getEdgeEvidence,
   getGraph,
   getGraphClustered,
   getGraphLens,
+  getReviewDue,
   getUniversalSearch,
   invalidateConceptCache,
   invalidateGraphCache,
   postConcept,
-  postEdge
+  postDraftEdge
 } from "./api/client";
 import { CaptureModal } from "./CaptureModal";
+import { ConceptInspectorV2 } from "./concept/ConceptInspectorV2";
 import { ConceptTree } from "./ConceptTree";
 import { ConceptWorkspace } from "./ConceptWorkspace";
 import { EdgeEvidencePanel } from "./EdgeEvidencePanel";
@@ -39,6 +43,8 @@ import { ReviewPanel } from "./ReviewPanel";
 import { ConceptSkeleton, SkeletonBlock } from "./Skeleton";
 import { SourcePanel } from "./SourcePanel";
 import { TutorPanel } from "./TutorPanel";
+import { TutorDrawer } from "./tutor/TutorDrawer";
+import { WorkbenchModal } from "./workbench/WorkbenchModal";
 import { CommandPalette } from "./CommandPalette";
 import { useLayoutWorker } from "./useLayoutWorker";
 import { EdgeTypePicker } from "./EdgeTypePicker";
@@ -47,20 +53,33 @@ import { GraphNavToolbar } from "./GraphNavToolbar";
 import type { EdgeDraftState } from "./LensEditToolbar";
 import { LensEditToolbar } from "./LensEditToolbar";
 import { TrainingPanel } from "./TrainingPanel";
-import { collectWithinHops } from "./search/neighborhood";
+import { collectTieredNeighborhood, collectWithinHops } from "./search/neighborhood";
 import { HighlightedText } from "./search/HighlightedText";
 import { usePanelResize } from "./usePanelResize";
+import { useUiFlags } from "./state/uiFlags";
+import { ShortcutsHelp } from "./ShortcutsHelp";
+import { useOnDemandNeighborhood } from "./graph/useOnDemandNeighborhood";
 
-type GraphViewMode = "classic" | "focus" | "lens";
+type GraphViewMode = "classic" | "focus" | "lens" | "explore";
+type SelectionSource =
+  | "atlas_click"
+  | "tree_click"
+  | "search_show_in_graph"
+  | "relationship_click"
+  | "programmatic";
+
+type GraphMode = "full" | "clustered" | "onDemand";
 
 type AtlasViewProps = {
   graph: GraphResponse | null;
   clusteredData: GraphClusteredResponse | null;
-  graphMode: "full" | "clustered";
+  graphMode: GraphMode;
   edgeTypeAllowlist: ReadonlySet<EdgeType>;
   edgeVisMode: EdgeVisMode;
   highlightConceptIds: ReadonlySet<string>;
   changesetHighlightConceptIds: ReadonlySet<string>;
+  hoveredRelationConceptId: string | null;
+  hoveredRelationEdgeId: string | null;
   masteryOverlayEnabled: boolean;
   selectedConceptId: string | null;
   pinnedConceptIds: ReadonlySet<string>;
@@ -68,10 +87,23 @@ type AtlasViewProps = {
   focusDepth: number;
   viewMode: GraphViewMode;
   lensData: GraphLensResponse | null;
+  exploreCenter: string | null;
+  onDemandData: GraphResponse | null;
+  onDemandHops: Map<string, number>;
+  onDemandLoading: boolean;
+  onDemandCapped: boolean;
   onSelectConcept: (conceptId: string) => void;
   onSelectEdge: (edgeId: string) => void;
+  onExploreNavigate?: (conceptId: string) => void;
+  onPinToggle?: (conceptId: string) => void;
   onCyReady?: (cy: cytoscape.Core | null) => void;
 };
+
+function isEditableTarget(target: EventTarget | null): boolean {
+  if (!(target instanceof HTMLElement)) return false;
+  const tag = target.tagName;
+  return tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT" || target.isContentEditable;
+}
 
 function buildElements(
   graph: GraphResponse,
@@ -162,6 +194,29 @@ function applyChangesetHighlight(cy: cytoscape.Core, conceptIds: ReadonlySet<str
   for (const id of conceptIds) {
     cy.$id(id).addClass("changesetAffected");
   }
+}
+
+function applyRelationshipHover(
+  cy: cytoscape.Core,
+  hoveredConceptId: string | null,
+  hoveredEdgeId: string | null
+) {
+  cy.nodes().removeClass("relationshipHover");
+  cy.edges().removeClass("relationshipHover");
+
+  if (hoveredConceptId) {
+    cy.$id(hoveredConceptId).addClass("relationshipHover");
+  }
+  if (!hoveredEdgeId) return;
+
+  const edge = cy.$id(hoveredEdgeId);
+  if (edge.empty()) return;
+  edge.addClass("relationshipHover");
+
+  const source = edge.data("source");
+  const target = edge.data("target");
+  if (typeof source === "string") cy.$id(source).addClass("relationshipHover");
+  if (typeof target === "string") cy.$id(target).addClass("relationshipHover");
 }
 
 const MASTERY_CLASS_NAMES = ["masteryLow", "masteryMid", "masteryHigh"] as const;
@@ -382,6 +437,165 @@ function applyLensMode(
   }
 }
 
+const EXPLORE_CLASSES = [
+  "exploreCenter", "exploreL1", "exploreL2",
+  "exploreHidden", "exploreBackbone", "exploreSecondary"
+] as const;
+
+function applyExploreMode(
+  cy: cytoscape.Core,
+  opts: {
+    enabled: boolean;
+    center: string;
+    l1: Set<string>;
+    l2: Set<string>;
+  }
+) {
+  // 1. Clear all explore classes
+  cy.nodes().removeClass(EXPLORE_CLASSES.join(" "));
+  cy.edges().removeClass(EXPLORE_CLASSES.join(" "));
+
+  // 2. Exit path
+  if (!opts.enabled) return;
+
+  const visibleIds = new Set([opts.center, ...opts.l1, ...opts.l2]);
+
+  // 3. Classify nodes
+  cy.nodes().forEach((node) => {
+    if (node.isParent?.()) {
+      node.addClass("exploreHidden");
+      return;
+    }
+    const id = node.id();
+    if (id === opts.center) node.addClass("exploreCenter");
+    else if (opts.l1.has(id)) node.addClass("exploreL1");
+    else if (opts.l2.has(id)) node.addClass("exploreL2");
+    else node.addClass("exploreHidden");
+  });
+
+  // 4. Classify edges
+  cy.edges().forEach((edge) => {
+    const source = edge.data("source") as string;
+    const target = edge.data("target") as string;
+    if (!visibleIds.has(source) || !visibleIds.has(target)) {
+      edge.addClass("exploreHidden");
+      return;
+    }
+    // Backbone: edge touches center
+    if (source === opts.center || target === opts.center) {
+      edge.addClass("exploreBackbone");
+    } else {
+      edge.addClass("exploreSecondary");
+    }
+  });
+}
+
+function runExploreConcentric(
+  cy: cytoscape.Core,
+  opts: {
+    center: string;
+    l1: Set<string>;
+    l2: Set<string>;
+    animate: boolean;
+  }
+) {
+  const visibleNodes = cy.nodes().not(".exploreHidden");
+  if (visibleNodes.empty()) return;
+
+  const centerWeight = 3;
+  const l1Weight = 2;
+  const l2Weight = 1;
+
+  visibleNodes.layout({
+    name: "concentric",
+    fit: true,
+    padding: 80,
+    animate: opts.animate,
+    animationDuration: 500,
+    animationEasing: "ease-out-cubic" as string,
+    concentric: (node: cytoscape.NodeSingular) => {
+      const id = node.id();
+      if (id === opts.center) return centerWeight;
+      if (opts.l1.has(id)) return l1Weight;
+      return l2Weight;
+    },
+    levelWidth: () => 1,
+    minNodeSpacing: 50
+  } as cytoscape.LayoutOptions).run();
+}
+
+function buildOnDemandElements(
+  data: GraphResponse,
+  hops: Map<string, number>,
+  centerId: string,
+  pinnedIds: ReadonlySet<string>
+): cytoscape.ElementDefinition[] {
+  const elements: cytoscape.ElementDefinition[] = [];
+  for (const node of data.nodes) {
+    const hop = hops.get(node.id);
+    const cls =
+      node.id === centerId
+        ? "exploreCenter"
+        : hop === 1
+          ? "exploreL1"
+          : "exploreL2";
+    const classes = pinnedIds.has(node.id) ? `${cls} pinned` : cls;
+    elements.push({
+      group: "nodes",
+      data: {
+        id: node.id,
+        label: node.title,
+        kind: node.kind ?? "Concept",
+        module: node.module ?? "",
+        masteryScore: node.masteryScore ?? 0,
+        pagerank: node.pagerank ?? 0
+      },
+      classes
+    });
+  }
+  for (const edge of data.edges) {
+    const cls =
+      edge.fromConceptId === centerId || edge.toConceptId === centerId
+        ? "exploreBackbone"
+        : "exploreSecondary";
+    elements.push({
+      group: "edges",
+      data: {
+        id: edge.id,
+        source: edge.fromConceptId,
+        target: edge.toConceptId,
+        type: edge.type
+      },
+      classes: cls
+    });
+  }
+  return elements;
+}
+
+function runOnDemandLayout(
+  cy: cytoscape.Core,
+  centerId: string,
+  hops: Map<string, number>
+) {
+  const allNodes = cy.nodes();
+  if (allNodes.empty()) return;
+
+  allNodes.layout({
+    name: "concentric",
+    fit: true,
+    padding: 80,
+    animate: false,
+    concentric: (node: cytoscape.NodeSingular) => {
+      const id = node.id();
+      if (id === centerId) return 3;
+      const hop = hops.get(id) ?? 3;
+      return Math.max(0, 3 - hop);
+    },
+    levelWidth: () => 1,
+    minNodeSpacing: 50
+  } as cytoscape.LayoutOptions).run();
+}
+
 const VIEWPORT_CULL_MARGIN = 0.2;
 const VIEWPORT_CULL_NODE_THRESHOLD = 500;
 
@@ -429,6 +643,12 @@ function applySemanticZoom(
     return;
   }
 
+  // In explore mode, visible nodes show labels (L2 hides via Cytoscape style)
+  if (opts.viewMode === "explore") {
+    cy.nodes().removeClass("labelHidden");
+    return;
+  }
+
   // Close zoom: all labels visible
   if (zoom >= ZOOM_MID) {
     cy.nodes().removeClass("labelHidden");
@@ -463,6 +683,8 @@ function AtlasView({
   edgeVisMode,
   highlightConceptIds,
   changesetHighlightConceptIds,
+  hoveredRelationConceptId,
+  hoveredRelationEdgeId,
   masteryOverlayEnabled,
   selectedConceptId,
   pinnedConceptIds,
@@ -470,13 +692,19 @@ function AtlasView({
   focusDepth,
   viewMode,
   lensData,
+  exploreCenter,
+  onDemandData,
+  onDemandHops,
   onSelectConcept,
   onSelectEdge,
+  onExploreNavigate,
+  onPinToggle,
   onCyReady
 }: AtlasViewProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const cyRef = useRef<cytoscape.Core | null>(null);
   const preLensPositionsRef = useRef<Map<string, { x: number; y: number }> | null>(null);
+  const preExplorePositionsRef = useRef<Map<string, { x: number; y: number }> | null>(null);
   const runLayoutInWorker = useLayoutWorker();
 
   const onSelectRef = useRef(onSelectConcept);
@@ -488,6 +716,21 @@ function AtlasView({
   useEffect(() => {
     onSelectEdgeRef.current = onSelectEdge;
   }, [onSelectEdge]);
+
+  const onExploreNavigateRef = useRef(onExploreNavigate);
+  useEffect(() => {
+    onExploreNavigateRef.current = onExploreNavigate;
+  }, [onExploreNavigate]);
+
+  const onPinToggleRef = useRef(onPinToggle);
+  useEffect(() => {
+    onPinToggleRef.current = onPinToggle;
+  }, [onPinToggle]);
+
+  const graphModeRef = useRef(graphMode);
+  useEffect(() => {
+    graphModeRef.current = graphMode;
+  }, [graphMode]);
 
   const onCyReadyRef = useRef(onCyReady);
   useEffect(() => {
@@ -514,6 +757,16 @@ function AtlasView({
     changesetHighlightRef.current = changesetHighlightConceptIds;
   }, [changesetHighlightConceptIds]);
 
+  const hoveredRelationConceptRef = useRef(hoveredRelationConceptId);
+  useEffect(() => {
+    hoveredRelationConceptRef.current = hoveredRelationConceptId;
+  }, [hoveredRelationConceptId]);
+
+  const hoveredRelationEdgeRef = useRef(hoveredRelationEdgeId);
+  useEffect(() => {
+    hoveredRelationEdgeRef.current = hoveredRelationEdgeId;
+  }, [hoveredRelationEdgeId]);
+
   const pinnedRef = useRef(pinnedConceptIds);
   useEffect(() => {
     pinnedRef.current = pinnedConceptIds;
@@ -529,6 +782,11 @@ function AtlasView({
     lensDataRef.current = lensData;
   }, [lensData]);
 
+  const exploreCenterRef = useRef(exploreCenter);
+  useEffect(() => {
+    exploreCenterRef.current = exploreCenter;
+  }, [exploreCenter]);
+
   const selectedConceptIdRef = useRef(selectedConceptId);
   useEffect(() => {
     selectedConceptIdRef.current = selectedConceptId;
@@ -537,7 +795,7 @@ function AtlasView({
   const topKRef = useRef<Set<string>>(new Set());
 
   const elements = useMemo(
-    () => (graph ? buildElements(graph, clusteredData, graphMode) : []),
+    () => (graph && graphMode !== "onDemand" ? buildElements(graph, clusteredData, graphMode) : []),
     [graph, clusteredData, graphMode]
   );
 
@@ -553,7 +811,7 @@ function AtlasView({
           selector: "node",
           style: {
             label: "data(label)",
-            "font-size": "11px",
+            "font-size": "12px",
             "text-wrap": "wrap",
             "text-max-width": "120px",
             "text-background-color": "#ffffff",
@@ -561,8 +819,8 @@ function AtlasView({
             "text-background-padding": "3px",
             "text-background-shape": "roundrectangle",
             "background-color": "#111827",
-            width: "mapData(pagerank, 0, 0.05, 20, 50)",
-            height: "mapData(pagerank, 0, 0.05, 20, 50)",
+            width: "mapData(pagerank, 0, 0.05, 30, 50)",
+            height: "mapData(pagerank, 0, 0.05, 30, 50)",
             color: "#0f172a",
             "transition-property": "opacity, background-color, border-width, border-color, width, height",
             "transition-duration": 300,
@@ -632,6 +890,16 @@ function AtlasView({
           }
         },
         {
+          selector: "node.relationshipHover",
+          style: {
+            "border-width": 5,
+            "border-color": "#f97316",
+            "overlay-opacity": 0.12,
+            "overlay-color": "#f97316",
+            opacity: 1
+          }
+        },
+        {
           selector: "node.edgeDraftSource",
           style: {
             "border-width": 4,
@@ -663,6 +931,15 @@ function AtlasView({
           selector: "edge.dimmed",
           style: {
             opacity: 0.15
+          }
+        },
+        {
+          selector: "edge.relationshipHover",
+          style: {
+            width: 4,
+            "line-color": "#f97316",
+            "target-arrow-color": "#f97316",
+            opacity: 1
           }
         },
         {
@@ -724,6 +1001,72 @@ function AtlasView({
           }
         },
         {
+          selector: "node.exploreCenter",
+          style: {
+            "background-color": "#2563eb",
+            "border-width": 6,
+            "border-color": "#1d4ed8",
+            width: 50,
+            height: 50,
+            "font-weight": "bold" as cytoscape.Css.FontWeight,
+            "font-size": "14px"
+          }
+        },
+        {
+          selector: "node.exploreL1",
+          style: {
+            "background-color": "#0d9488",
+            "border-width": 2,
+            "border-color": "#0f766e",
+            width: 30,
+            height: 30,
+            opacity: 1
+          }
+        },
+        {
+          selector: "node.exploreL2",
+          style: {
+            "background-color": "#64748b",
+            "border-width": 1,
+            "border-color": "#475569",
+            width: 22,
+            height: 22,
+            opacity: 0.4,
+            "text-opacity": 0,
+            "text-background-opacity": 0
+          }
+        },
+        {
+          selector: "node.exploreHidden",
+          style: {
+            display: "none"
+          }
+        },
+        {
+          selector: "edge.exploreBackbone",
+          style: {
+            width: 3,
+            "line-color": "#334155",
+            "target-arrow-color": "#334155",
+            opacity: 1
+          }
+        },
+        {
+          selector: "edge.exploreSecondary",
+          style: {
+            width: 1.5,
+            "line-color": "#94a3b8",
+            "target-arrow-color": "#94a3b8",
+            opacity: 0.5
+          }
+        },
+        {
+          selector: "edge.exploreHidden",
+          style: {
+            display: "none"
+          }
+        },
+        {
           selector: "node.viewportCulled",
           style: {
             display: "none"
@@ -756,11 +1099,24 @@ function AtlasView({
     });
 
     const onTapNode = (evt: cytoscape.EventObject) => {
-      const id = evt.target.id();
-      if (typeof id === "string" && id.length > 0) {
-        evt.target.flashClass("selectPulse", 400);
-        onSelectRef.current(id);
+      const node = evt.target;
+      if (node.isParent?.()) return;
+      const id = node.id();
+      if (typeof id !== "string" || id.length === 0) return;
+
+      // On-demand explore: Shift+click = pin toggle, regular click = navigate
+      if (graphModeRef.current === "onDemand" && viewModeRef.current === "explore") {
+        if (evt.originalEvent?.shiftKey) {
+          onPinToggleRef.current?.(id);
+        } else {
+          onSelectRef.current(id);
+          onExploreNavigateRef.current?.(id);
+        }
+        return;
       }
+
+      node.flashClass("selectPulse", 400);
+      onSelectRef.current(id);
     };
 
     const onTapEdge = (evt: cytoscape.EventObject) => {
@@ -772,7 +1128,7 @@ function AtlasView({
       const node = evt.target;
       if (node.isParent?.()) return;
       node.stop().animate({
-        style: { width: 35, height: 35 },
+        style: { width: 38, height: 38 },
         duration: 150,
         easing: "ease-out-cubic"
       });
@@ -788,7 +1144,18 @@ function AtlasView({
       });
     };
 
+    const onDbltapNode = (evt: cytoscape.EventObject) => {
+      if (viewModeRef.current !== "explore") return;
+      const node = evt.target;
+      if (node.isParent?.()) return;
+      const id = node.id();
+      if (typeof id === "string" && id.length > 0) {
+        onExploreNavigateRef.current?.(id);
+      }
+    };
+
     cy.on("tap", "node", onTapNode);
+    cy.on("dbltap", "node", onDbltapNode);
     cy.on("tap", "edge", onTapEdge);
     cy.on("mouseover", "node", onMouseOver);
     cy.on("mouseout", "node", onMouseOut);
@@ -818,6 +1185,7 @@ function AtlasView({
       cy.removeListener("viewport", onViewport);
       if (import.meta.env.DEV && window.__CY__ === cy) delete window.__CY__;
       cy.removeListener("tap", "node", onTapNode);
+      cy.removeListener("dbltap", "node", onDbltapNode);
       cy.removeListener("tap", "edge", onTapEdge);
       cy.removeListener("mouseover", "node", onMouseOver);
       cy.removeListener("mouseout", "node", onMouseOut);
@@ -833,6 +1201,7 @@ function AtlasView({
     const cy: cytoscape.Core = cyVal;
 
     preLensPositionsRef.current = null;
+    preExplorePositionsRef.current = null;
 
     cy.elements().remove();
     if (elements.length === 0) return;
@@ -846,6 +1215,11 @@ function AtlasView({
       applyEdgeFilter(cy, allowlistRef.current, edgeVisModeRef.current);
       applyConceptHighlight(cy, highlightRef.current);
       applyChangesetHighlight(cy, changesetHighlightRef.current);
+      applyRelationshipHover(
+        cy,
+        hoveredRelationConceptRef.current,
+        hoveredRelationEdgeRef.current
+      );
       applyPinnedNodes(cy, pinnedRef.current);
 
       // Compute top-K by degree for semantic zoom
@@ -935,6 +1309,12 @@ function AtlasView({
   useEffect(() => {
     const cy = cyRef.current;
     if (!cy) return;
+    applyRelationshipHover(cy, hoveredRelationConceptId, hoveredRelationEdgeId);
+  }, [hoveredRelationConceptId, hoveredRelationEdgeId]);
+
+  useEffect(() => {
+    const cy = cyRef.current;
+    if (!cy) return;
     applyPinnedNodes(cy, pinnedConceptIds);
   }, [pinnedConceptIds]);
 
@@ -989,6 +1369,70 @@ function AtlasView({
     }
   }, [viewMode, lensData]);
 
+  // Full-graph explore mode (skip for on-demand)
+  useEffect(() => {
+    const cy = cyRef.current;
+    if (!cy) return;
+    if (graphMode === "onDemand") return;
+
+    if (viewMode === "explore" && exploreCenter && graph) {
+      // Save current positions before repositioning
+      if (!preExplorePositionsRef.current) {
+        const saved = new Map<string, { x: number; y: number }>();
+        cy.nodes().forEach((n) => {
+          const pos = n.position();
+          saved.set(n.id(), { x: pos.x, y: pos.y });
+        });
+        preExplorePositionsRef.current = saved;
+      }
+
+      const allowedTypes = new Set<string>();
+      for (const t of edgeTypeAllowlist) allowedTypes.add(t);
+
+      const neighborhood = collectTieredNeighborhood(graph.edges, exploreCenter, allowedTypes);
+      applyExploreMode(cy, {
+        enabled: true,
+        center: neighborhood.center,
+        l1: neighborhood.l1,
+        l2: neighborhood.l2
+      });
+      runExploreConcentric(cy, {
+        center: neighborhood.center,
+        l1: neighborhood.l1,
+        l2: neighborhood.l2,
+        animate: true
+      });
+    } else {
+      // Clear explore mode
+      applyExploreMode(cy, { enabled: false, center: "", l1: new Set(), l2: new Set() });
+      // Restore saved positions
+      if (preExplorePositionsRef.current) {
+        for (const [id, pos] of preExplorePositionsRef.current) {
+          const node = cy.$id(id);
+          if (!node.empty()) {
+            node.stop().animate({ position: pos, duration: 400, easing: "ease-in-out-sine" });
+          }
+        }
+        preExplorePositionsRef.current = null;
+        cy.animate({ fit: { eles: cy.elements(), padding: 50 }, duration: 400 });
+      }
+    }
+  }, [viewMode, exploreCenter, graph, edgeTypeAllowlist, graphMode]);
+
+  // On-demand explore: replace elements when data arrives
+  useEffect(() => {
+    const cy = cyRef.current;
+    if (!cy) return;
+    if (graphMode !== "onDemand") return;
+    if (viewMode !== "explore") return;
+    if (!onDemandData || !exploreCenter) return;
+
+    cy.elements().remove();
+    const elems = buildOnDemandElements(onDemandData, onDemandHops, exploreCenter, pinnedConceptIds);
+    cy.add(elems);
+    runOnDemandLayout(cy, exploreCenter, onDemandHops);
+  }, [viewMode, graphMode, onDemandData, exploreCenter, onDemandHops, pinnedConceptIds]);
+
   useEffect(() => {
     const cy = cyRef.current;
     if (!cy) return;
@@ -1015,14 +1459,31 @@ function AtlasView({
 
 
 export default function App() {
-  const { shellRef, leftDividerProps, rightDividerProps, gridTemplateColumns } = usePanelResize();
+  const {
+    shellRef,
+    leftDividerProps,
+    rightDividerProps,
+    gridTemplateColumns,
+    toggleLeftPane,
+    toggleRightPane
+  } = usePanelResize();
   const atlasCyRef = useRef<cytoscape.Core | null>(null);
   const focusTimerRef = useRef<number | null>(null);
+  const { flags, setFlag, resetFlags } = useUiFlags();
+  const isDesignV2 = flags.designV2Enabled;
+  const isRightPaneV2 = isDesignV2 && flags.rightPaneV2Enabled;
+  const isConceptInspectorV2 = isDesignV2 && flags.conceptInspectorV2Enabled;
+  const autoLensGateEnabled = isDesignV2 && flags.autoLensOnSelectEnabled;
+  const isTutorDrawerEnabled = isDesignV2 && flags.tutorDrawerEnabled;
+  const isWorkbenchEnabled = isDesignV2;
+  const isV2PaneLabel = isRightPaneV2 || isConceptInspectorV2;
 
   const [graph, setGraph] = useState<GraphResponse | null>(null);
   const [graphError, setGraphError] = useState<string | null>(null);
-  const [graphMode, setGraphMode] = useState<"full" | "clustered">("full");
+  const [graphMode, setGraphMode] = useState<GraphMode>("onDemand");
   const [clusteredData, setClusteredData] = useState<GraphClusteredResponse | null>(null);
+
+  const [leftTab, setLeftTab] = useState<"browse" | "filters">("browse");
 
   const [query, setQuery] = useState("");
   const [universalSearch, setUniversalSearch] = useState<SearchUniversalResponse | null>(null);
@@ -1037,7 +1498,8 @@ export default function App() {
 
   const [masteryOverlayEnabled, setMasteryOverlayEnabled] = useState(false);
 
-  const [viewMode, setViewMode] = useState<GraphViewMode>("classic");
+  const [viewMode, setViewMode] = useState<GraphViewMode>("explore");
+  const [userOverrodeAutoView, setUserOverrodeAutoView] = useState(true);
   const focusModeEnabled = viewMode === "focus";
   const [focusDepth, setFocusDepth] = useState(1);
   const [pinnedConceptIds, setPinnedConceptIds] = useState<Set<string>>(() => new Set());
@@ -1047,6 +1509,37 @@ export default function App() {
   const [lensError, setLensError] = useState<string | null>(null);
   const [lensRadius, setLensRadius] = useState(1);
 
+  const [exploreCenter, setExploreCenter] = useState<string | null>(null);
+  const [exploreHistory, setExploreHistory] = useState<string[]>([]);
+  const [exploreFuture, setExploreFuture] = useState<string[]>([]);
+
+  const onDemandTypeFilters = useMemo(() => Array.from(selectedEdgeTypes), [selectedEdgeTypes]);
+  const {
+    data: onDemandData,
+    hops: onDemandHops,
+    loading: onDemandLoading,
+    error: onDemandError,
+    capped: onDemandCapped,
+    fetchNeighborhood,
+    clearCache: clearOnDemandCache
+  } = useOnDemandNeighborhood({
+    depth: 2,
+    typeFilters: onDemandTypeFilters,
+    maxNodes: 200,
+    maxEdges: 500
+  });
+
+  // When edge filters change in on-demand mode, clear cache and refetch current center
+  const prevEdgeTypesRef = useRef(onDemandTypeFilters);
+  useEffect(() => {
+    if (prevEdgeTypesRef.current === onDemandTypeFilters) return;
+    prevEdgeTypesRef.current = onDemandTypeFilters;
+    if (graphMode === "onDemand" && exploreCenter) {
+      clearOnDemandCache();
+      fetchNeighborhood(exploreCenter);
+    }
+  }, [onDemandTypeFilters, graphMode, exploreCenter, clearOnDemandCache, fetchNeighborhood]);
+
   const [edgeVisMode, setEdgeVisMode] = useState<EdgeVisMode>("filtered");
   const [debugPanelOpen, setDebugPanelOpen] = useState(false);
   const [debugZoom, setDebugZoom] = useState(1);
@@ -1054,6 +1547,9 @@ export default function App() {
   const [activeRightTab, setActiveRightTab] = useState<
     "concept" | "source" | "evidence" | "inbox" | "review" | "tutor"
   >("concept");
+  const [workbenchMode, setWorkbenchMode] = useState<"inbox" | "review" | null>(null);
+  const [inboxPendingCount, setInboxPendingCount] = useState<number | null>(null);
+  const [reviewDueCount, setReviewDueCount] = useState<number | null>(null);
 
   const [selectedConceptId, setSelectedConceptId] = useState<string | null>(() => {
     return new URLSearchParams(window.location.search).get("conceptId");
@@ -1063,9 +1559,12 @@ export default function App() {
   const [sourcesRefreshToken, setSourcesRefreshToken] = useState(0);
 
   const [selectedEdgeId, setSelectedEdgeId] = useState<string | null>(null);
+  const [hoveredRelationConceptId, setHoveredRelationConceptId] = useState<string | null>(null);
+  const [hoveredRelationEdgeId, setHoveredRelationEdgeId] = useState<string | null>(null);
   const [edgeEvidence, setEdgeEvidence] = useState<GetEdgeEvidenceResponse | null>(null);
   const [edgeEvidenceLoading, setEdgeEvidenceLoading] = useState(false);
   const [edgeEvidenceError, setEdgeEvidenceError] = useState<string | null>(null);
+  const [snackbarMessage, setSnackbarMessage] = useState<string | null>(null);
 
   const [concept, setConcept] = useState<Concept | null>(null);
   const [conceptError, setConceptError] = useState<string | null>(null);
@@ -1074,11 +1573,15 @@ export default function App() {
   const [tutorHighlightedConceptIds, setTutorHighlightedConceptIds] = useState<Set<string>>(
     () => new Set()
   );
+  const [tutorDrawerOpen, setTutorDrawerOpen] = useState(false);
+  const [tutorSeedQuestion, setTutorSeedQuestion] = useState("");
+  const [tutorSeedQuestionToken, setTutorSeedQuestionToken] = useState(0);
 
   const [captureOpen, setCaptureOpen] = useState(false);
 
   const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
   const [trainingPanelOpen, setTrainingPanelOpen] = useState(false);
+  const [shortcutsHelpOpen, setShortcutsHelpOpen] = useState(false);
 
   const [lensRefreshToken, setLensRefreshToken] = useState(0);
   const [interactionMode, setInteractionMode] = useState<InteractionMode>("pointer");
@@ -1091,12 +1594,61 @@ export default function App() {
   const [changesetHighlightConceptIds, setChangesetHighlightConceptIds] = useState<Set<string>>(
     () => new Set()
   );
+  const [inspectorActionRequest, setInspectorActionRequest] = useState<{
+    type: "new_note" | "generate_quiz" | "add_relation";
+    token: number;
+  } | null>(null);
 
   useEffect(() => {
     if (activeRightTab !== "inbox") {
       setChangesetHighlightConceptIds(new Set());
     }
   }, [activeRightTab]);
+
+  const refreshWorkbenchCounts = useCallback(async () => {
+    try {
+      const [changesetsRes, reviewRes] = await Promise.all([
+        getChangesets(),
+        getReviewDue(100)
+      ]);
+      setInboxPendingCount(changesetsRes.changesets.filter((c) => c.status === "draft").length);
+      setReviewDueCount(reviewRes.items.length);
+    } catch {
+      setInboxPendingCount(null);
+      setReviewDueCount(null);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!isWorkbenchEnabled) return;
+    void refreshWorkbenchCounts();
+  }, [isWorkbenchEnabled, refreshWorkbenchCounts]);
+
+  useEffect(() => {
+    if (!isWorkbenchEnabled) {
+      setWorkbenchMode(null);
+      return;
+    }
+    if (activeRightTab === "inbox" || activeRightTab === "review") {
+      setActiveRightTab("concept");
+    }
+  }, [activeRightTab, isWorkbenchEnabled]);
+
+  useEffect(() => {
+    if (!isTutorDrawerEnabled) {
+      setTutorDrawerOpen(false);
+      return;
+    }
+    if (activeRightTab === "tutor") {
+      setActiveRightTab("concept");
+    }
+  }, [activeRightTab, isTutorDrawerEnabled]);
+
+  useEffect(() => {
+    if (!snackbarMessage) return;
+    const timer = window.setTimeout(() => setSnackbarMessage(null), 2400);
+    return () => window.clearTimeout(timer);
+  }, [snackbarMessage]);
 
   const [contextPackContent, setContextPackContent] = useState<{
     markdown: string;
@@ -1156,26 +1708,215 @@ export default function App() {
     }, 1400);
   }, []);
 
-  const selectAndFocusConcept = useCallback((id: string) => {
-    selectConcept(id);
-    focusConceptInGraph(id);
-  }, [focusConceptInGraph]);
+  function selectAndFocusConcept(id: string) {
+    selectConcept(id, "tree_click");
+    if (viewMode === "explore") {
+      handleExploreNavigate(id);
+    } else {
+      focusConceptInGraph(id);
+    }
+  }
 
-  // Cmd+K command palette shortcut + Escape to cancel edge draft
+  function navigateToConceptInGraph(id: string, source: SelectionSource = "search_show_in_graph") {
+    if (graphMode === "onDemand") {
+      if (viewMode !== "explore") {
+        // path 2a: entering explore mode fresh
+        selectConcept(id, source);
+        setUserOverrodeAutoView(true);
+        setViewMode("explore");
+        setExploreCenter(id);
+        setExploreHistory([]);
+        setExploreFuture([]);
+        fetchNeighborhood(id);
+      } else {
+        // path 2b: already in explore — handleExploreNavigate does selectConcept + fetchNeighborhood
+        handleExploreNavigate(id);
+      }
+    } else {
+      selectConcept(id, source);
+      focusConceptInGraph(id);
+    }
+  }
+
+  const openTutorDrawer = useCallback((seedQuestion?: string) => {
+    if (typeof seedQuestion === "string" && seedQuestion.trim().length > 0) {
+      setTutorSeedQuestion(seedQuestion.trim());
+      setTutorSeedQuestionToken((v) => v + 1);
+    }
+    setTutorDrawerOpen(true);
+  }, []);
+
+  const openWorkbench = useCallback((mode: "inbox" | "review") => {
+    if (isWorkbenchEnabled) {
+      setWorkbenchMode(mode);
+      void refreshWorkbenchCounts();
+      return;
+    }
+    setActiveRightTab(mode);
+  }, [isWorkbenchEnabled, refreshWorkbenchCounts]);
+
+  const triggerInspectorAction = useCallback(
+    (type: "new_note" | "generate_quiz" | "add_relation") => {
+      if (!selectedConceptId) {
+        setSnackbarMessage("Select a concept first");
+        return;
+      }
+      setActiveRightTab("concept");
+      if (!isConceptInspectorV2) {
+        setSnackbarMessage("Enable Concept Inspector V2 to use this action");
+        return;
+      }
+      setInspectorActionRequest({ type, token: Date.now() });
+    },
+    [isConceptInspectorV2, selectedConceptId]
+  );
+
+  const clearGraphSelection = useCallback(() => {
+    const params = new URLSearchParams(window.location.search);
+    params.delete("conceptId");
+    const nextUrl = params.toString().length > 0
+      ? `${window.location.pathname}?${params.toString()}`
+      : window.location.pathname;
+    window.history.pushState({}, "", nextUrl);
+    setSelectedConceptId(null);
+    setSelectedEdgeId(null);
+    setSelectedSourceId(null);
+    setHoveredRelationConceptId(null);
+    setHoveredRelationEdgeId(null);
+    setActiveRightTab("concept");
+  }, []);
+
+  const closeTopLayer = useCallback((): boolean => {
+    if (shortcutsHelpOpen) {
+      setShortcutsHelpOpen(false);
+      return true;
+    }
+    if (commandPaletteOpen) {
+      setCommandPaletteOpen(false);
+      return true;
+    }
+    if (trainingPanelOpen) {
+      setTrainingPanelOpen(false);
+      return true;
+    }
+    if (workbenchMode) {
+      setWorkbenchMode(null);
+      return true;
+    }
+    if (tutorDrawerOpen) {
+      setTutorDrawerOpen(false);
+      return true;
+    }
+    if (captureOpen) {
+      setCaptureOpen(false);
+      return true;
+    }
+    if (addConceptOpen) {
+      setAddConceptOpen(false);
+      return true;
+    }
+    if (edgeDraftState.phase !== "idle") {
+      cancelEdgeDraft();
+      return true;
+    }
+    return false;
+  }, [
+    addConceptOpen,
+    shortcutsHelpOpen,
+    captureOpen,
+    commandPaletteOpen,
+    edgeDraftState.phase,
+    tutorDrawerOpen,
+    workbenchMode,
+    trainingPanelOpen
+  ]);
+
+  const handleShowShortcuts = useCallback(() => {
+    setShortcutsHelpOpen(true);
+  }, []);
+
+  const exploreBackRef = useRef(() => handleExploreBack());
+  exploreBackRef.current = () => handleExploreBack();
+  const exploreForwardRef = useRef(() => handleExploreForward());
+  exploreForwardRef.current = () => handleExploreForward();
+  const exploreExitRef = useRef(() => handleViewModeChange("classic"));
+  exploreExitRef.current = () => handleViewModeChange("classic");
+
+  // Cmd+K command palette, core shortcuts, and layer-close escape
   useEffect(() => {
     function handleKeyDown(e: KeyboardEvent) {
-      if ((e.metaKey || e.ctrlKey) && e.key === "k") {
+      if (isEditableTarget(e.target)) return;
+      if (activeRightTab === "source") return;
+
+      const key = e.key;
+
+      if ((e.metaKey || e.ctrlKey) && key.toLowerCase() === "k") {
         e.preventDefault();
         setCommandPaletteOpen((prev) => !prev);
+        return;
       }
-      if (e.key === "Escape" && edgeDraftState.phase !== "idle") {
+      if (key === "?") {
         e.preventDefault();
-        cancelEdgeDraft();
+        handleShowShortcuts();
+        return;
+      }
+
+      if (key === "n") {
+        e.preventDefault();
+        triggerInspectorAction("new_note");
+        return;
+      }
+      if (key === "q") {
+        e.preventDefault();
+        triggerInspectorAction("generate_quiz");
+        return;
+      }
+      if (key === "e") {
+        e.preventDefault();
+        triggerInspectorAction("add_relation");
+        return;
+      }
+      if (key === "[") {
+        e.preventDefault();
+        toggleLeftPane();
+        return;
+      }
+      if (key === "]") {
+        e.preventDefault();
+        toggleRightPane();
+        return;
+      }
+      if (key === "Backspace" && viewMode === "explore") {
+        e.preventDefault();
+        exploreBackRef.current();
+        return;
+      }
+      if (key === "Escape") {
+        e.preventDefault();
+        if (closeTopLayer()) return;
+        if (viewMode === "explore") {
+          exploreExitRef.current();
+          // Also exit on-demand mode since it has no full graph to fall back to
+          setGraphMode((m) => (m === "onDemand" ? "clustered" : m));
+          return;
+        }
+        clearGraphSelection();
+        setTutorHighlightedConceptIds(new Set());
+        return;
       }
     }
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [edgeDraftState.phase]);
+  }, [
+    closeTopLayer,
+    clearGraphSelection,
+    activeRightTab,
+    handleShowShortcuts,
+    toggleLeftPane,
+    toggleRightPane,
+    triggerInspectorAction,
+    viewMode
+  ]);
 
   const commandPaletteActions = useMemo(
     () => [
@@ -1183,12 +1924,62 @@ export default function App() {
         id: "start-training",
         label: "Start training session",
         onSelect: () => setTrainingPanelOpen(true)
+      },
+      {
+        id: "open-inbox",
+        label: "Open Inbox",
+        onSelect: () => openWorkbench("inbox")
+      },
+      {
+        id: "open-review-queue",
+        label: "Open Review Queue",
+        onSelect: () => openWorkbench("review")
+      },
+      {
+        id: "new-note",
+        label: "New Note",
+        onSelect: () => triggerInspectorAction("new_note")
+      },
+      {
+        id: "generate-quiz-selection",
+        label: "Generate Quiz",
+        onSelect: () => triggerInspectorAction("generate_quiz")
+      },
+      {
+        id: "add-relation-selection",
+        label: "Add relation",
+        onSelect: () => triggerInspectorAction("add_relation")
+      },
+      {
+        id: "ask-tutor-selection",
+        label: "Ask Tutor about selection",
+        onSelect: () => {
+          if (isTutorDrawerEnabled) {
+            openTutorDrawer();
+          } else {
+            setActiveRightTab("tutor");
+          }
+        }
+      },
+      {
+        id: "show-shortcuts",
+        label: "Show shortcuts",
+        onSelect: () => {
+          handleShowShortcuts();
+        }
       }
     ],
-    []
+    [
+      isTutorDrawerEnabled,
+      openTutorDrawer,
+      openWorkbench,
+      handleShowShortcuts,
+      triggerInspectorAction
+    ]
   );
 
   useEffect(() => {
+    if (graphMode === "onDemand") return;
     let cancelled = false;
     setGraphError(null);
 
@@ -1196,14 +1987,11 @@ export default function App() {
       .then((g) => {
         if (cancelled) return;
         setGraph(g);
-        if (g.nodes.length > 200) {
-          setGraphMode("clustered");
-          getGraphClustered()
-            .then((c) => {
-              if (!cancelled) setClusteredData(c);
-            })
-            .catch(() => {});
-        }
+        getGraphClustered()
+          .then((c) => {
+            if (!cancelled) setClusteredData(c);
+          })
+          .catch(() => {});
       })
       .catch((err: unknown) => {
         if (cancelled) return;
@@ -1213,7 +2001,7 @@ export default function App() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [graphMode]);
 
   async function refreshGraph() {
     invalidateGraphCache();
@@ -1377,19 +2165,42 @@ export default function App() {
     });
   }
 
-  function selectConcept(id: string) {
+  function selectConcept(id: string, source: SelectionSource = "programmatic") {
     const params = new URLSearchParams(window.location.search);
     params.set("conceptId", id);
     window.history.pushState({}, "", `${window.location.pathname}?${params.toString()}`);
     setSelectedConceptId(id);
     setSelectedEdgeId(null);
     setSelectedSourceId(null);
+    setHoveredRelationConceptId(null);
+    setHoveredRelationEdgeId(null);
     setActiveRightTab("concept");
+
+    if (autoLensGateEnabled && !userOverrodeAutoView && source !== "programmatic" && graphMode !== "onDemand") {
+      setViewMode("lens");
+      setEdgeVisMode("prereq_only");
+    }
   }
 
   function selectEdge(id: string) {
     setSelectedEdgeId(id);
     setActiveRightTab("evidence");
+  }
+
+  function selectEdgeWithoutPanel(id: string) {
+    setSelectedEdgeId(id);
+  }
+
+  async function createDraftEdge(input: PostDraftEdgeRequest): Promise<void> {
+    const res = await postDraftEdge(input);
+    openWorkbench("inbox");
+    setChangesetHighlightConceptIds(new Set([input.fromConceptId, input.toConceptId]));
+    setSnackbarMessage("Draft edge added to Inbox");
+    setHoveredRelationConceptId(null);
+    setHoveredRelationEdgeId(null);
+    if (!res.item || !res.changeset) {
+      throw new Error("Failed to stage draft edge");
+    }
   }
 
   function cancelEdgeDraft() {
@@ -1402,8 +2213,97 @@ export default function App() {
     if (viewMode === "lens" && edgeDraftState.phase !== "idle") {
       handleLensNodeTap(id);
     } else {
-      selectConcept(id);
+      selectConcept(id, "atlas_click");
     }
+  }
+
+  function handleViewModeChange(nextMode: GraphViewMode) {
+    if (autoLensGateEnabled && nextMode !== viewMode) {
+      setUserOverrodeAutoView(true);
+    }
+    // When entering explore, center on currently selected concept
+    if (nextMode === "explore") {
+      const centerId = selectedConceptId ?? graph?.nodes[0]?.id ?? null;
+      setExploreCenter(centerId);
+      setExploreHistory([]);
+      setExploreFuture([]);
+      if (graphMode === "onDemand" && centerId) {
+        fetchNeighborhood(centerId);
+      }
+    }
+    // When leaving explore, clear state
+    if (viewMode === "explore" && nextMode !== "explore") {
+      setExploreCenter(null);
+      setExploreHistory([]);
+      setExploreFuture([]);
+    }
+    setViewMode(nextMode);
+  }
+
+  function handleExploreNavigate(targetId: string) {
+    if (exploreCenter) {
+      setExploreHistory((prev) => [...prev, exploreCenter]);
+    }
+    setExploreFuture([]);
+    setExploreCenter(targetId);
+    selectConcept(targetId, "programmatic");
+    if (graphMode === "onDemand") {
+      fetchNeighborhood(targetId);
+    }
+  }
+
+  function handleExploreBack() {
+    setExploreHistory((prev) => {
+      if (prev.length === 0) return prev;
+      const next = [...prev];
+      const previousCenter = next.pop()!;
+      if (exploreCenter) {
+        setExploreFuture((f) => [...f, exploreCenter]);
+      }
+      setExploreCenter(previousCenter);
+      selectConcept(previousCenter, "programmatic");
+      if (graphMode === "onDemand") {
+        fetchNeighborhood(previousCenter);
+      }
+      return next;
+    });
+  }
+
+  function handleExploreForward() {
+    setExploreFuture((prev) => {
+      if (prev.length === 0) return prev;
+      const next = [...prev];
+      const forwardCenter = next.pop()!;
+      if (exploreCenter) {
+        setExploreHistory((h) => [...h, exploreCenter]);
+      }
+      setExploreCenter(forwardCenter);
+      selectConcept(forwardCenter, "programmatic");
+      if (graphMode === "onDemand") {
+        fetchNeighborhood(forwardCenter);
+      }
+      return next;
+    });
+  }
+
+  function handlePinToggle(id: string) {
+    setPinnedConceptIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  function handleAutoLensFlagChange(enabled: boolean) {
+    setFlag("autoLensOnSelectEnabled", enabled);
+    // Re-arm auto behavior on explicit toggle.
+    setUserOverrodeAutoView(false);
+  }
+
+  function handleResetFlags() {
+    resetFlags();
+    setUserOverrodeAutoView(false);
   }
 
   function handleLensNodeTap(id: string) {
@@ -1435,11 +2335,14 @@ export default function App() {
     setLensEditError(null);
 
     try {
-      await postEdge({ fromConceptId: sourceId, toConceptId: targetId, type, evidenceChunkIds: [] });
-      await refreshGraph();
-      setLensRefreshToken((t) => t + 1);
+      await createDraftEdge({
+        fromConceptId: sourceId,
+        toConceptId: targetId,
+        type,
+        evidenceChunkIds: []
+      });
     } catch (err) {
-      const message = err instanceof Error ? err.message : "Failed to create edge";
+      const message = err instanceof Error ? err.message : "Failed to stage draft edge";
       if (message.includes("EDGE_WOULD_CYCLE")) {
         setLensEditError("Cannot create: would form a prerequisite cycle");
       } else {
@@ -1545,40 +2448,104 @@ export default function App() {
     };
   }, [selectedEdgeId]);
 
+  const tutorGraphContext = useMemo(() => {
+    const lensNodeIds = Array.from(new Set((lensData?.nodes ?? []).map((n) => n.id)));
+    const lensEdgeIds = Array.from(new Set((lensData?.edges ?? []).map((e) => e.id)));
+    const evidenceChunkIds = Array.from(
+      new Set((edgeEvidence?.evidence ?? []).map((item) => item.chunk.id))
+    );
+    return { lensNodeIds, lensEdgeIds, evidenceChunkIds };
+  }, [edgeEvidence?.evidence, lensData?.edges, lensData?.nodes]);
+
+  const inboxBadge = inboxPendingCount === null ? "—" : String(inboxPendingCount);
+  const reviewBadge =
+    reviewDueCount === null ? "—" : reviewDueCount >= 100 ? "100+" : String(reviewDueCount);
+
   return (
     <div className="app">
       <header className="topbar">
         <h1>Graph AI Tutor</h1>
-        <button
-          type="button"
-          className="secondaryButton"
-          onClick={() => setCaptureOpen(true)}
-          data-testid="capture-open"
-        >
-          Capture
-        </button>
+        <div className="buttonRow">
+          {isWorkbenchEnabled ? (
+            <>
+              <button
+                type="button"
+                className="secondaryButton topbarCountButton"
+                onClick={() => openWorkbench("inbox")}
+                data-testid="topbar-inbox-count"
+              >
+                Inbox <span className="topbarCountBadge">{inboxBadge}</span>
+              </button>
+              <button
+                type="button"
+                className="secondaryButton topbarCountButton"
+                onClick={() => openWorkbench("review")}
+                data-testid="topbar-review-count"
+              >
+                Due <span className="topbarCountBadge">{reviewBadge}</span>
+              </button>
+            </>
+          ) : null}
+          <button
+            type="button"
+            className="ghostButton"
+            onClick={() => setShortcutsHelpOpen(true)}
+            aria-label="Show keyboard shortcuts"
+            title="Show keyboard shortcuts"
+            data-testid="open-shortcuts-help"
+          >
+            ?
+          </button>
+          <button
+            type="button"
+            className="secondaryButton"
+            onClick={() => setCaptureOpen(true)}
+            data-testid="capture-open"
+          >
+            Capture
+          </button>
+        </div>
       </header>
 
       {captureOpen ? (
         <CaptureModal
           onCaptured={() => {
             setCaptureOpen(false);
-            setActiveRightTab("inbox");
+            openWorkbench("inbox");
+            void refreshWorkbenchCounts();
             void refreshGraph();
           }}
           onClose={() => setCaptureOpen(false)}
         />
       ) : null}
 
+      <ShortcutsHelp
+        open={shortcutsHelpOpen}
+        onClose={() => setShortcutsHelpOpen(false)}
+      />
+
       <div className="shell" ref={shellRef} style={{ gridTemplateColumns }}>
         <aside className="pane leftPane" aria-label="Navigation">
-          <div className="section">
-            <div className="sectionTitle">Nav</div>
-            <div className="navItem" aria-current="page">
-              Atlas
-            </div>
+          <div className="leftTabBar">
+            <button
+              type="button"
+              className={`leftTab${leftTab === "browse" ? " active" : ""}`}
+              onClick={() => setLeftTab("browse")}
+            >
+              Browse
+            </button>
+            <button
+              type="button"
+              className={`leftTab${leftTab === "filters" ? " active" : ""}`}
+              onClick={() => setLeftTab("filters")}
+            >
+              Filters
+            </button>
           </div>
 
+          <div className="leftTabContent">
+            {leftTab === "browse" ? (
+              <>
             <div className="section">
               <label className="sectionTitle" htmlFor="search">
                 Search
@@ -1680,8 +2647,7 @@ export default function App() {
                                       type="button"
                                       className="ghostButton"
                                       onClick={() => {
-                                        selectConcept(r.id);
-                                        focusConceptInGraph(r.id);
+                                        navigateToConceptInGraph(r.id);
                                       }}
                                       data-testid={`search-show-${r.id}`}
                                     >
@@ -1734,8 +2700,7 @@ export default function App() {
                                           disabled={!targetConceptId}
                                           onClick={() => {
                                             if (!targetConceptId) return;
-                                            selectConcept(targetConceptId);
-                                            focusConceptInGraph(targetConceptId);
+                                            navigateToConceptInGraph(targetConceptId);
                                           }}
                                         >
                                           Show in graph
@@ -1791,8 +2756,7 @@ export default function App() {
                                           disabled={!targetConceptId}
                                           onClick={() => {
                                             if (!targetConceptId) return;
-                                            selectConcept(targetConceptId);
-                                            focusConceptInGraph(targetConceptId);
+                                            navigateToConceptInGraph(targetConceptId);
                                           }}
                                         >
                                           Show in graph
@@ -1822,7 +2786,9 @@ export default function App() {
                 />
               )}
             </div>
-
+              </>
+            ) : (
+              <>
           <div className="section">
             <label className="sectionTitle" htmlFor="edge-vis-mode-select">
               Edge visibility
@@ -1867,12 +2833,28 @@ export default function App() {
               id="view-mode-select"
               className="searchInput"
               value={viewMode}
-              onChange={(e) => setViewMode(e.target.value as GraphViewMode)}
+              onChange={(e) => handleViewModeChange(e.target.value as GraphViewMode)}
             >
               <option value="classic">Classic</option>
               <option value="focus">Focus</option>
               <option value="lens">Lens</option>
+              <option value="explore">Explore</option>
             </select>
+
+            <label className="mutedText" htmlFor="auto-lens-select-toggle">
+              <input
+                id="auto-lens-select-toggle"
+                type="checkbox"
+                checked={flags.autoLensOnSelectEnabled}
+                onChange={(e) => handleAutoLensFlagChange(e.target.checked)}
+              />{" "}
+              Auto dependency view on select
+            </label>
+            {autoLensGateEnabled && userOverrodeAutoView ? (
+              <p className="mutedText" data-testid="auto-view-override-hint">
+                Manual override active. Toggle Auto off/on to re-enable.
+              </p>
+            ) : null}
 
             <label className="mutedText" htmlFor="focus-depth-select">
               Focus depth
@@ -1935,6 +2917,9 @@ export default function App() {
               </button>
             </div>
           </div>
+              </>
+            )}
+          </div>
         </aside>
 
         <div className="divider" {...leftDividerProps} role="separator" aria-label="Resize left panel" />
@@ -1969,13 +2954,15 @@ export default function App() {
             <>
               <div className="centerHeader">
                 <h2>Atlas</h2>
-                {graph ? (
+                {graph || graphMode === "onDemand" ? (
                   <div className="buttonRow">
                     <p className="mutedText">
-                      Nodes: {graph.nodes.length} • Edges: {graph.edges.length}
-                      {graphMode === "clustered" ? " (clustered)" : ""}
+                      {graphMode === "onDemand"
+                        ? `On-demand${onDemandData ? ` • ${onDemandData.nodes.length} nodes` : ""}`
+                        : `Nodes: ${graph!.nodes.length} • Edges: ${graph!.edges.length}${graphMode === "clustered" ? " (clustered)" : ""}`
+                      }
                     </p>
-                    {graph.nodes.length > 200 ? (
+                    {graphMode !== "onDemand" && (
                       <button
                         type="button"
                         className="ghostButton"
@@ -1983,7 +2970,30 @@ export default function App() {
                       >
                         {graphMode === "clustered" ? "Show full graph" : "Show clusters"}
                       </button>
-                    ) : null}
+                    )}
+                    <button
+                      type="button"
+                      className={graphMode === "onDemand" ? "secondaryButton" : "ghostButton"}
+                      onClick={() => {
+                        if (graphMode === "onDemand") {
+                          setGraphMode("clustered");
+                          if (viewMode === "explore") handleViewModeChange("classic");
+                        } else {
+                          setGraphMode("onDemand");
+                          setUserOverrodeAutoView(true);
+                          const centerId = selectedConceptId ?? graph?.nodes[0]?.id ?? null;
+                          setViewMode("explore");
+                          setExploreCenter(centerId);
+                          setExploreHistory([]);
+                          setExploreFuture([]);
+                          if (centerId) {
+                            fetchNeighborhood(centerId);
+                          }
+                        }
+                      }}
+                    >
+                      {graphMode === "onDemand" ? "Exit on-demand" : "On-demand explore"}
+                    </button>
                     <button
                       type="button"
                       className="ghostButton"
@@ -2006,6 +3016,64 @@ export default function App() {
                       <p>Zoom: {debugZoom.toFixed(3)}</p>
                       <p>View mode: {viewMode}</p>
                       <p>Edge vis: {edgeVisMode}</p>
+                      <div className="debugFlagsSection" data-testid="debug-v2-flags">
+                        <div className="debugFlagsTitle">V2</div>
+                        <p>Design V2 active: {isDesignV2 ? "yes" : "no"}</p>
+                        <label className="debugFlagRow" htmlFor="flag-design-v2">
+                          <input
+                            id="flag-design-v2"
+                            type="checkbox"
+                            checked={flags.designV2Enabled}
+                            onChange={(e) => setFlag("designV2Enabled", e.target.checked)}
+                          />{" "}
+                          designV2Enabled
+                        </label>
+                        <label className="debugFlagRow" htmlFor="flag-right-pane-v2">
+                          <input
+                            id="flag-right-pane-v2"
+                            type="checkbox"
+                            checked={flags.rightPaneV2Enabled}
+                            onChange={(e) => setFlag("rightPaneV2Enabled", e.target.checked)}
+                          />{" "}
+                          rightPaneV2Enabled
+                        </label>
+                        <label className="debugFlagRow" htmlFor="flag-concept-inspector-v2">
+                          <input
+                            id="flag-concept-inspector-v2"
+                            type="checkbox"
+                            checked={flags.conceptInspectorV2Enabled}
+                            onChange={(e) => setFlag("conceptInspectorV2Enabled", e.target.checked)}
+                          />{" "}
+                          conceptInspectorV2Enabled
+                        </label>
+                        <label className="debugFlagRow" htmlFor="flag-tutor-drawer">
+                          <input
+                            id="flag-tutor-drawer"
+                            type="checkbox"
+                            checked={flags.tutorDrawerEnabled}
+                            onChange={(e) => setFlag("tutorDrawerEnabled", e.target.checked)}
+                          />{" "}
+                          tutorDrawerEnabled
+                        </label>
+                        <label className="debugFlagRow" htmlFor="flag-auto-lens-on-select">
+                          <input
+                            id="flag-auto-lens-on-select"
+                            type="checkbox"
+                            checked={flags.autoLensOnSelectEnabled}
+                            onChange={(e) => handleAutoLensFlagChange(e.target.checked)}
+                          />{" "}
+                          autoLensOnSelectEnabled
+                        </label>
+                        <div className="buttonRow debugFlagsActions">
+                          <button
+                            type="button"
+                            className="ghostButton"
+                            onClick={handleResetFlags}
+                          >
+                            Reset to defaults
+                          </button>
+                        </div>
+                      </div>
                     </div>
                   </details>
                 ) : null}
@@ -2020,6 +3088,8 @@ export default function App() {
                     edgeVisMode={edgeVisMode}
                     highlightConceptIds={tutorHighlightedConceptIds}
                     changesetHighlightConceptIds={changesetHighlightConceptIds}
+                    hoveredRelationConceptId={hoveredRelationConceptId}
+                    hoveredRelationEdgeId={hoveredRelationEdgeId}
                     masteryOverlayEnabled={masteryOverlayEnabled}
                     selectedConceptId={selectedConceptId}
                     pinnedConceptIds={pinnedConceptIds}
@@ -2027,8 +3097,15 @@ export default function App() {
                     focusDepth={focusDepth}
                     viewMode={viewMode}
                     lensData={lensData}
+                    exploreCenter={exploreCenter}
+                    onDemandData={onDemandData}
+                    onDemandHops={onDemandHops}
+                    onDemandLoading={onDemandLoading}
+                    onDemandCapped={onDemandCapped}
                     onSelectConcept={handleAtlasConceptSelect}
                     onSelectEdge={selectEdge}
+                    onExploreNavigate={handleExploreNavigate}
+                    onPinToggle={handlePinToggle}
                     onCyReady={handleCyReady}
                   />
                 <GraphNavToolbar
@@ -2052,6 +3129,68 @@ export default function App() {
                     saving={lensEditSaving}
                   />
                 )}
+                {viewMode === "explore" && exploreCenter && (
+                  <div className="exploreToolbar" data-testid="explore-toolbar">
+                    <button
+                      type="button"
+                      className="secondaryButton"
+                      disabled={exploreHistory.length === 0}
+                      onClick={handleExploreBack}
+                      title="Go back (Backspace)"
+                    >
+                      ← Back{exploreHistory.length > 0 ? ` (${exploreHistory.length})` : ""}
+                    </button>
+                    <span className="exploreToolbar__center">
+                      {(graphMode === "onDemand"
+                        ? onDemandData?.nodes.find((n) => n.id === exploreCenter)?.title
+                        : graph?.nodes.find((n) => n.id === exploreCenter)?.title
+                      ) ?? exploreCenter}
+                      {graphMode === "onDemand" && onDemandData ? (
+                        <span className="mutedText" style={{ marginLeft: 6, fontSize: "0.85em" }}>
+                          ({onDemandData.nodes.length} nodes)
+                        </span>
+                      ) : null}
+                    </span>
+                    <button
+                      type="button"
+                      className="secondaryButton"
+                      disabled={exploreFuture.length === 0}
+                      onClick={handleExploreForward}
+                      title="Go forward"
+                    >
+                      Forward{exploreFuture.length > 0 ? ` (${exploreFuture.length})` : ""} →
+                    </button>
+                    <button
+                      type="button"
+                      className="ghostButton"
+                      onClick={() => handleViewModeChange("classic")}
+                      title="Exit explore mode (Escape)"
+                    >
+                      Exit
+                    </button>
+                  </div>
+                )}
+                {/* On-demand overlays */}
+                {graphMode === "onDemand" && viewMode === "explore" && !onDemandData && !onDemandLoading && (
+                  <div className="onDemandOverlay" data-testid="on-demand-overlay">
+                    Search to begin exploring
+                  </div>
+                )}
+                {graphMode === "onDemand" && onDemandLoading && (
+                  <div className="onDemandLoading" data-testid="on-demand-loading">
+                    Loading neighborhood…
+                  </div>
+                )}
+                {graphMode === "onDemand" && onDemandCapped && !onDemandLoading && (
+                  <div className="cappedBanner" data-testid="capped-banner">
+                    Results capped — zoom in or filter edge types for more detail
+                  </div>
+                )}
+                {graphMode === "onDemand" && onDemandError && !onDemandLoading && (
+                  <div className="cappedBanner" style={{ background: "rgba(239,68,68,0.9)" }}>
+                    {onDemandError}
+                  </div>
+                )}
               </div>
             </>
           )}
@@ -2060,6 +3199,11 @@ export default function App() {
         <div className="divider" {...rightDividerProps} role="separator" aria-label="Resize right panel" />
 
         <section className="pane rightPane" aria-label="Concept">
+          {isRightPaneV2 ? (
+            <div className="rightPaneV2Preview" data-testid="right-pane-v2-preview">
+              V2 Inspector preview is enabled.
+            </div>
+          ) : null}
           <div className="tabs" role="tablist" aria-label="Right panel tabs">
             <button
               type="button"
@@ -2067,7 +3211,7 @@ export default function App() {
               aria-current={activeRightTab === "concept" ? "page" : undefined}
               onClick={() => setActiveRightTab("concept")}
             >
-              Concept Workspace
+              {isV2PaneLabel ? "Inspector" : "Concept Workspace"}
             </button>
             <button
               type="button"
@@ -2087,30 +3231,36 @@ export default function App() {
             >
               Evidence
             </button>
-            <button
-              type="button"
-              className={`tab ${activeRightTab === "inbox" ? "tabActive" : ""}`}
-              aria-current={activeRightTab === "inbox" ? "page" : undefined}
-              onClick={() => setActiveRightTab("inbox")}
-            >
-              Inbox
-            </button>
-            <button
-              type="button"
-              className={`tab ${activeRightTab === "tutor" ? "tabActive" : ""}`}
-              aria-current={activeRightTab === "tutor" ? "page" : undefined}
-              onClick={() => setActiveRightTab("tutor")}
-            >
-              Tutor
-            </button>
-            <button
-              type="button"
-              className={`tab ${activeRightTab === "review" ? "tabActive" : ""}`}
-              aria-current={activeRightTab === "review" ? "page" : undefined}
-              onClick={() => setActiveRightTab("review")}
-            >
-              Review
-            </button>
+            {!isWorkbenchEnabled ? (
+              <button
+                type="button"
+                className={`tab ${activeRightTab === "inbox" ? "tabActive" : ""}`}
+                aria-current={activeRightTab === "inbox" ? "page" : undefined}
+                onClick={() => setActiveRightTab("inbox")}
+              >
+                Inbox
+              </button>
+            ) : null}
+            {!isTutorDrawerEnabled ? (
+              <button
+                type="button"
+                className={`tab ${activeRightTab === "tutor" ? "tabActive" : ""}`}
+                aria-current={activeRightTab === "tutor" ? "page" : undefined}
+                onClick={() => setActiveRightTab("tutor")}
+              >
+                Tutor
+              </button>
+            ) : null}
+            {!isWorkbenchEnabled ? (
+              <button
+                type="button"
+                className={`tab ${activeRightTab === "review" ? "tabActive" : ""}`}
+                aria-current={activeRightTab === "review" ? "page" : undefined}
+                onClick={() => setActiveRightTab("review")}
+              >
+                Review
+              </button>
+            ) : null}
           </div>
 
           {activeRightTab === "concept" ? (
@@ -2123,27 +3273,77 @@ export default function App() {
                 {conceptError}
               </p>
             ) : concept ? (
-              <ConceptWorkspace
-                concept={concept}
-                graph={graph}
-                onOpenConcept={selectAndFocusConcept}
-                onShowContextPack={showContextPack}
-                onGraphUpdated={refreshGraph}
-                onOpenSource={openSource}
-                sourcesRefreshToken={sourcesRefreshToken}
-                onConceptUpdated={(next) => setConcept(next)}
-                onSave={async (input) => {
-                  const res = await postConcept({
-                    id: input.id,
-                    l0: input.l0,
-                    l1: input.l1,
-                    l2: input.l2
-                  });
-                  invalidateConceptCache(input.id);
-                  setConcept(res.concept);
-                  return res.concept;
-                }}
-              />
+              isConceptInspectorV2 ? (
+                <ConceptInspectorV2
+                  concept={concept}
+                  graph={graph}
+                  onOpenConcept={selectAndFocusConcept}
+                  onShowContextPack={showContextPack}
+                  onGraphUpdated={refreshGraph}
+                  onOpenSource={openSource}
+                  sourcesRefreshToken={sourcesRefreshToken}
+                  onConceptUpdated={(next) => setConcept(next)}
+                  actionRequest={inspectorActionRequest}
+                  onOpenTutorTab={() => {
+                    if (isTutorDrawerEnabled) {
+                      openTutorDrawer(`Explain ${concept.title} with prerequisites and examples.`);
+                    } else {
+                      setActiveRightTab("tutor");
+                    }
+                  }}
+                  onHoverRelationship={(input) => {
+                    if (!input) {
+                      setHoveredRelationConceptId(null);
+                      setHoveredRelationEdgeId(null);
+                      return;
+                    }
+                    setHoveredRelationConceptId(input.conceptId);
+                    setHoveredRelationEdgeId(input.edgeId);
+                  }}
+                  onSelectRelationship={({ conceptId, edgeId }) => {
+                    setHoveredRelationConceptId(null);
+                    setHoveredRelationEdgeId(null);
+                    navigateToConceptInGraph(conceptId, "relationship_click");
+                    selectEdgeWithoutPanel(edgeId);
+                  }}
+                  onCreateDraftRelation={async (input) => {
+                    await createDraftEdge(input);
+                  }}
+                  onSave={async (input) => {
+                    const res = await postConcept({
+                      id: input.id,
+                      l0: input.l0,
+                      l1: input.l1,
+                      l2: input.l2
+                    });
+                    invalidateConceptCache(input.id);
+                    setConcept(res.concept);
+                    return res.concept;
+                  }}
+                />
+              ) : (
+                <ConceptWorkspace
+                  concept={concept}
+                  graph={graph}
+                  onOpenConcept={selectAndFocusConcept}
+                  onShowContextPack={showContextPack}
+                  onGraphUpdated={refreshGraph}
+                  onOpenSource={openSource}
+                  sourcesRefreshToken={sourcesRefreshToken}
+                  onConceptUpdated={(next) => setConcept(next)}
+                  onSave={async (input) => {
+                    const res = await postConcept({
+                      id: input.id,
+                      l0: input.l0,
+                      l1: input.l1,
+                      l2: input.l2
+                    });
+                    invalidateConceptCache(input.id);
+                    setConcept(res.concept);
+                    return res.concept;
+                  }}
+                />
+              )
             ) : (
               <p className="mutedText">Concept not found.</p>
             )
@@ -2160,7 +3360,7 @@ export default function App() {
                 loading={edgeEvidenceLoading}
                 error={edgeEvidenceError}
               />
-          ) : activeRightTab === "inbox" ? (
+          ) : activeRightTab === "inbox" && !isWorkbenchEnabled ? (
             <InboxPanel
               graph={graph}
               onGraphUpdated={refreshGraph}
@@ -2168,16 +3368,57 @@ export default function App() {
                 setChangesetHighlightConceptIds(new Set(ids))
               }
             />
-          ) : activeRightTab === "review" ? (
+          ) : activeRightTab === "review" && !isWorkbenchEnabled ? (
             <ReviewPanel graph={graph} onOpenConcept={selectAndFocusConcept} />
-          ) : (
+          ) : activeRightTab === "tutor" ? (
             <TutorPanel
               graph={graph}
+              selectionContext={{
+                conceptId: selectedConceptId,
+                edgeId: selectedEdgeId,
+                lensNodeIds: tutorGraphContext.lensNodeIds,
+                lensEdgeIds: tutorGraphContext.lensEdgeIds,
+                evidenceChunkIds: tutorGraphContext.evidenceChunkIds
+              }}
               onHighlightConceptIds={(ids) => setTutorHighlightedConceptIds(new Set(ids))}
             />
+          ) : (
+            <p className="mutedText">Select a tab to continue.</p>
           )}
         </section>
       </div>
+
+      {isWorkbenchEnabled ? (
+        <WorkbenchModal
+          mode={workbenchMode}
+          graph={graph}
+          onClose={() => setWorkbenchMode(null)}
+          onGraphUpdated={refreshGraph}
+          onOpenConcept={selectAndFocusConcept}
+          onHighlightChangesetConceptIds={(ids) => setChangesetHighlightConceptIds(new Set(ids))}
+          onCountsMaybeChanged={() => void refreshWorkbenchCounts()}
+        />
+      ) : null}
+
+      {isTutorDrawerEnabled ? (
+        <TutorDrawer
+          open={tutorDrawerOpen}
+          setOpen={setTutorDrawerOpen}
+          graph={graph}
+          onHighlightConceptIds={(ids) => setTutorHighlightedConceptIds(new Set(ids))}
+          selectedConceptId={selectedConceptId}
+          selectedEdgeId={selectedEdgeId}
+          currentGraphContext={tutorGraphContext}
+          seedQuestion={tutorSeedQuestion}
+          seedQuestionToken={tutorSeedQuestionToken}
+        />
+      ) : null}
+
+      {snackbarMessage ? (
+        <div className="snackbar" role="status" aria-live="polite">
+          {snackbarMessage}
+        </div>
+      ) : null}
 
       <CommandPalette
         open={commandPaletteOpen}
@@ -2185,7 +3426,7 @@ export default function App() {
         actions={commandPaletteActions}
         concepts={graph?.nodes}
         onSelectConcept={(conceptId) => {
-          selectConcept(conceptId);
+          selectConcept(conceptId, "programmatic");
           setViewMode("lens");
         }}
       />

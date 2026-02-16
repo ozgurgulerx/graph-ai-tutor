@@ -57,8 +57,10 @@ export function InboxPanel(props: {
   graph: GraphResponse | null;
   onGraphUpdated: () => Promise<void>;
   onHighlightChangesetConceptIds?: (ids: string[]) => void;
+  onChangesetsUpdated?: (changesets: Changeset[]) => void;
 }) {
   const onHighlightChangesetConceptIds = props.onHighlightChangesetConceptIds;
+  const onChangesetsUpdated = props.onChangesetsUpdated;
   const [changesets, setChangesets] = useState<Changeset[] | null>(null);
   const [changesetsLoading, setChangesetsLoading] = useState(false);
   const [changesetsError, setChangesetsError] = useState<string | null>(null);
@@ -79,12 +81,13 @@ export function InboxPanel(props: {
     try {
       const res = await getChangesets();
       setChangesets(res.changesets);
+      onChangesetsUpdated?.(res.changesets);
     } catch (err) {
       setChangesetsError(err instanceof Error ? err.message : "Failed to load changesets");
     } finally {
       setChangesetsLoading(false);
     }
-  }, []);
+  }, [onChangesetsUpdated]);
 
   const loadChangeset = useCallback(async (id: string) => {
     setDetailLoading(true);

@@ -145,7 +145,8 @@ export type EdgeSummary = z.infer<typeof EdgeSummarySchema>;
 
 export const GraphResponseSchema = z.object({
   nodes: z.array(ConceptSummarySchema),
-  edges: z.array(EdgeSummarySchema)
+  edges: z.array(EdgeSummarySchema),
+  capped: z.boolean().optional().default(false)
 });
 
 export type GraphResponse = z.infer<typeof GraphResponseSchema>;
@@ -166,7 +167,9 @@ export const GraphQuerySchema = z
         return [];
       }, z.array(EdgeTypeSchema))
       .optional()
-      .default([])
+      .default([]),
+    maxNodes: z.coerce.number().int().min(1).max(1000).optional(),
+    maxEdges: z.coerce.number().int().min(1).max(5000).optional()
   })
   .strict();
 
@@ -545,6 +548,18 @@ export const ChangesetItemSchema = z.object({
 });
 
 export type ChangesetItem = z.infer<typeof ChangesetItemSchema>;
+
+export const PostDraftEdgeRequestSchema = PostEdgeRequestSchema;
+export type PostDraftEdgeRequest = z.infer<typeof PostDraftEdgeRequestSchema>;
+
+export const PostDraftEdgeResponseSchema = z
+  .object({
+    changeset: ChangesetSchema,
+    item: ChangesetItemSchema
+  })
+  .strict();
+
+export type PostDraftEdgeResponse = z.infer<typeof PostDraftEdgeResponseSchema>;
 
 export const ChangesetFilePatchPayloadSchema = z
   .object({

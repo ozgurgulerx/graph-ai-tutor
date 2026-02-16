@@ -8,6 +8,7 @@ const RIGHT_MIN = 260;
 const RIGHT_MAX = 600;
 const CENTER_MIN = 300;
 const DIVIDER_PX = 6;
+const COLLAPSED = 0;
 
 type DragState = {
   side: "left" | "right";
@@ -18,10 +19,30 @@ type DragState = {
 export function usePanelResize() {
   const [leftWidth, setLeftWidth] = useState(LEFT_DEFAULT);
   const [rightWidth, setRightWidth] = useState(RIGHT_DEFAULT);
+  const [leftCollapsed, setLeftCollapsed] = useState(false);
+  const [rightCollapsed, setRightCollapsed] = useState(false);
+  const leftExpandedWidthRef = useRef(LEFT_DEFAULT);
+  const rightExpandedWidthRef = useRef(RIGHT_DEFAULT);
   const shellRef = useRef<HTMLDivElement | null>(null);
   const dragRef = useRef<DragState | null>(null);
 
   const clamp = useCallback(
+    (side: "left" | "right", value: number) => {
+      if (side === "left" && leftCollapsed) return COLLAPSED;
+      if (side === "right" && rightCollapsed) return COLLAPSED;
+
+      const shell = shellRef.current;
+      const totalWidth = shell ? shell.offsetWidth : window.innerWidth;
+      const otherSide = side === "left" ? rightWidth : leftWidth;
+      const maxByCenter = totalWidth - otherSide - 2 * DIVIDER_PX - CENTER_MIN;
+      const min = side === "left" ? LEFT_MIN : RIGHT_MIN;
+      const max = side === "left" ? LEFT_MAX : RIGHT_MAX;
+      return Math.round(Math.max(min, Math.min(max, maxByCenter, value)));
+    },
+    [leftCollapsed, leftWidth, rightCollapsed, rightWidth]
+  );
+
+  const clampExpanded = useCallback(
     (side: "left" | "right", value: number) => {
       const shell = shellRef.current;
       const totalWidth = shell ? shell.offsetWidth : window.innerWidth;
@@ -34,8 +55,30 @@ export function usePanelResize() {
     [leftWidth, rightWidth]
   );
 
+  const setLeft = useCallback(
+    (value: number) => {
+      setLeftWidth(clampExpanded("left", value));
+      setLeftCollapsed(false);
+    },
+    [clampExpanded]
+  );
+
+  const setRight = useCallback(
+    (value: number) => {
+      setRightWidth(clampExpanded("right", value));
+      setRightCollapsed(false);
+    },
+    [clampExpanded]
+  );
+
   const onPointerDown = useCallback(
     (side: "left" | "right") => (e: React.PointerEvent<HTMLDivElement>) => {
+      if (side === "left") {
+        setLeftCollapsed(false);
+      } else {
+        setRightCollapsed(false);
+      }
+
       e.preventDefault();
       (e.target as HTMLElement).setPointerCapture(e.pointerId);
       document.body.classList.add("panel-dragging");
@@ -56,12 +99,12 @@ export function usePanelResize() {
       const direction = side === "left" ? 1 : -1;
       const newWidth = drag.startWidth + delta * direction;
       if (side === "left") {
-        setLeftWidth(clamp("left", newWidth));
+        setLeft(newWidth);
       } else {
-        setRightWidth(clamp("right", newWidth));
+        setRight(newWidth);
       }
     },
-    [clamp]
+    [setLeft, setRight]
   );
 
   const onPointerUp = useCallback(
@@ -75,9 +118,37 @@ export function usePanelResize() {
   );
 
   const onDoubleClick = useCallback(() => {
-    setLeftWidth(LEFT_DEFAULT);
-    setRightWidth(RIGHT_DEFAULT);
-  }, []);
+    setLeft(LEFT_DEFAULT);
+    setRight(RIGHT_DEFAULT);
+    leftExpandedWidthRef.current = LEFT_DEFAULT;
+    rightExpandedWidthRef.current = RIGHT_DEFAULT;
+    setLeftCollapsed(false);
+    setRightCollapsed(false);
+  }, [setLeft, setRight]);
+
+  const toggleLeftPane = useCallback(() => {
+    setLeftCollapsed((collapsed) => {
+      if (collapsed) {
+        setLeftWidth(clampExpanded("left", leftExpandedWidthRef.current));
+        return false;
+      }
+      leftExpandedWidthRef.current = Math.max(LEFT_MIN, leftWidth);
+      setLeftWidth(COLLAPSED);
+      return true;
+    });
+  }, [leftCollapsed, leftWidth, setLeft]);
+
+  const toggleRightPane = useCallback(() => {
+    setRightCollapsed((collapsed) => {
+      if (collapsed) {
+        setRightWidth(clampExpanded("right", rightExpandedWidthRef.current));
+        return false;
+      }
+      rightExpandedWidthRef.current = Math.max(RIGHT_MIN, rightWidth);
+      setRightWidth(COLLAPSED);
+      return true;
+    });
+  }, [clampExpanded, rightWidth, setRight]);
 
   // Re-clamp on window resize
   useEffect(() => {
@@ -111,6 +182,10 @@ export function usePanelResize() {
     shellRef,
     leftDividerProps,
     rightDividerProps,
+    toggleLeftPane,
+    toggleRightPane,
+    isLeftCollapsed: leftCollapsed,
+    isRightCollapsed: rightCollapsed,
     gridTemplateColumns
   };
 }

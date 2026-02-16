@@ -5,6 +5,7 @@ import {
   getEdgeEvidence,
   postChangesetItemStatus,
   postConcept,
+  postDraftEdge,
   postConceptMergeApply,
   postConceptMergePreview,
   postConceptMergeUndo,
@@ -151,6 +152,62 @@ describe("web api client", () => {
     const body = init?.body;
     expect(typeof body).toBe("string");
     expect(JSON.parse(String(body))).toEqual({ status: "accepted" });
+  });
+
+  it("POST /api/changeset/edge-draft sends draft edge JSON body", async () => {
+    const fetchMock = vi.fn(async (_input: RequestInfo | URL, _init?: RequestInit) => {
+      void _input;
+      void _init;
+      return new Response(
+        JSON.stringify({
+          changeset: {
+            id: "changeset_1",
+            sourceId: null,
+            status: "draft",
+            createdAt: 0,
+            appliedAt: null
+          },
+          item: {
+            id: "changeset_item_1",
+            changesetId: "changeset_1",
+            entityType: "edge",
+            action: "create",
+            status: "pending",
+            payload: {
+              fromConceptId: "concept_a",
+              toConceptId: "concept_b",
+              type: "DEPENDS_ON",
+              evidenceChunkIds: []
+            },
+            createdAt: 0
+          }
+        }),
+        { status: 200, headers: { "content-type": "application/json" } }
+      );
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    await postDraftEdge({
+      fromConceptId: "concept_a",
+      toConceptId: "concept_b",
+      type: "DEPENDS_ON",
+      evidenceChunkIds: []
+    });
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    const [url, init] = (fetchMock.mock.calls[0] ??
+      []) as unknown as [RequestInfo | URL, RequestInit | undefined];
+    expect(url).toBe("/api/changeset/edge-draft");
+    expect(init).toMatchObject({
+      method: "POST",
+      headers: { "content-type": "application/json" }
+    });
+    expect(JSON.parse(String(init?.body))).toEqual({
+      fromConceptId: "concept_a",
+      toConceptId: "concept_b",
+      type: "DEPENDS_ON",
+      evidenceChunkIds: []
+    });
   });
 
   it("POST /api/tutor sends question JSON body and parses citations", async () => {

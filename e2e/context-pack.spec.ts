@@ -3,9 +3,8 @@ import { expect, test } from "@playwright/test";
 test("generate context pack and view in center pane", async ({ page }) => {
   await page.goto("/");
 
-  // Select a concept from the sidebar
-  const firstConcept = page.getByRole("list", { name: /concepts/i }).getByRole("button").first();
-  await firstConcept.click();
+  // Select a concept from the sidebar.
+  await page.getByRole("button", { name: /kv cache/i }).click();
 
   const panel = page.getByRole("region", { name: /concept/i });
   await expect(panel.getByTestId("concept-title")).toBeVisible();

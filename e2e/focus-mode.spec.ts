@@ -12,10 +12,11 @@ test("focus mode dims non-neighborhood nodes and depth expands the neighborhood"
   });
 
   await page.getByRole("button", { name: /kv cache/i }).click();
+  await page.getByRole("button", { name: /^filters$/i }).click();
 
-  const focusToggle = page.getByLabel(/focus mode/i);
-  await expect(focusToggle).toBeVisible();
-  await focusToggle.check();
+  const viewMode = page.getByLabel(/view mode/i);
+  await expect(viewMode).toBeVisible();
+  await viewMode.selectOption("focus");
 
   const depth = page.getByLabel(/focus depth/i);
   await expect(depth).toBeVisible();

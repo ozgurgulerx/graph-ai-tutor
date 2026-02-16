@@ -58,6 +58,8 @@ import {
   PostConceptNoteRequestSchema,
   PostConceptNoteResponseSchema,
   GetConceptBacklinksResponseSchema,
+  PostDraftEdgeRequestSchema,
+  PostDraftEdgeResponseSchema,
   PostEdgeRequestSchema,
   PostEdgeResponseSchema,
   PostGenerateConceptContextResponseSchema,
@@ -121,6 +123,8 @@ import type {
   PostConceptNoteRequest,
   PostConceptNoteResponse,
   GetConceptBacklinksResponse,
+  PostDraftEdgeRequest,
+  PostDraftEdgeResponse,
   PostEdgeRequest,
   PostEdgeResponse,
   PostGenerateConceptContextResponse,
@@ -167,13 +171,14 @@ const etagCache = new Map<string, { etag: string; data: unknown }>();
 
 async function requestJsonWithEtag<T>(
   schema: { parse: (input: unknown) => T },
-  path: string
+  path: string,
+  signal?: AbortSignal
 ): Promise<T> {
   const cached = etagCache.get(path);
   const headers: Record<string, string> = { accept: "application/json" };
   if (cached) headers["If-None-Match"] = cached.etag;
 
-  const res = await fetch(`${API_BASE}${path}`, { headers });
+  const res = await fetch(`${API_BASE}${path}`, { headers, signal });
 
   if (res.status === 304 && cached) {
     return cached.data as T;
@@ -197,9 +202,25 @@ export function getGraph(): Promise<GraphResponse> {
   return requestJsonWithEtag(GraphResponseSchema, "/graph");
 }
 
-export function getGraphLocal(center: string, depth = 2): Promise<GraphResponse> {
-  const qs = `center=${encodeURIComponent(center)}&depth=${depth}`;
-  return requestJsonWithEtag(GraphResponseSchema, `/graph?${qs}`);
+export type GraphLocalOptions = {
+  center: string;
+  depth?: number;
+  typeFilters?: string[];
+  maxNodes?: number;
+  maxEdges?: number;
+  signal?: AbortSignal;
+};
+
+export function getGraphLocal(opts: GraphLocalOptions): Promise<GraphResponse> {
+  const params = new URLSearchParams();
+  params.set("center", opts.center);
+  params.set("depth", String(opts.depth ?? 2));
+  if (opts.typeFilters && opts.typeFilters.length > 0) {
+    params.set("typeFilters", opts.typeFilters.join(","));
+  }
+  if (opts.maxNodes != null) params.set("maxNodes", String(opts.maxNodes));
+  if (opts.maxEdges != null) params.set("maxEdges", String(opts.maxEdges));
+  return requestJsonWithEtag(GraphResponseSchema, `/graph?${params.toString()}`, opts.signal);
 }
 
 export function getGraphClustered(): Promise<GraphClusteredResponse> {
@@ -602,6 +623,15 @@ export function getConceptBacklinks(conceptId: string): Promise<GetConceptBackli
 export function postEdge(input: PostEdgeRequest): Promise<PostEdgeResponse> {
   const parsed = PostEdgeRequestSchema.parse(input);
   return requestJson(PostEdgeResponseSchema, "/edge", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(parsed)
+  });
+}
+
+export function postDraftEdge(input: PostDraftEdgeRequest): Promise<PostDraftEdgeResponse> {
+  const parsed = PostDraftEdgeRequestSchema.parse(input);
+  return requestJson(PostDraftEdgeResponseSchema, "/changeset/edge-draft", {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify(parsed)

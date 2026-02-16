@@ -7,14 +7,15 @@ test("edit local source title line autosaves and persists after reload", async (
   await page.goto("/");
 
   await page.getByRole("button", { name: /kv cache/i }).click();
+  await page.getByTestId("tab-sources").click();
 
   await page.getByRole("button", { name: /new local note/i }).click();
 
   const panel = page.getByTestId("source-panel");
   await expect(panel.getByTestId("source-title")).toHaveText(/kv cache notes/i);
 
-  // Enter edit mode via keyboard.
-  await page.keyboard.press("e");
+  // Enter edit mode via the editor toggle.
+  await panel.getByRole("button", { name: /edit/i }).click();
 
   // Replace full content so the first heading updates the Source title.
   await panel.locator(".cm-content").click();
@@ -24,9 +25,9 @@ test("edit local source title line autosaves and persists after reload", async (
   await expect(panel.getByText(/saved/i)).toBeVisible();
 
   await page.reload();
+  await page.getByTestId("tab-sources").click();
 
   // Re-open the source from the concept sources list.
   await page.getByRole("button", { name: title }).click();
   await expect(panel.getByTestId("source-title")).toHaveText(title);
 });
-

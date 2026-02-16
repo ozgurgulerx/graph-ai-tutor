@@ -29,6 +29,7 @@ import {
   PostCrawlResponseSchema,
   PostDraftRevisionApplyResponseSchema,
   PostDraftRevisionRevertResponseSchema,
+  PostDraftEdgeResponseSchema,
   PostEdgeResponseSchema,
   PostGenerateConceptQuizzesResponseSchema,
   PostConceptMergePreviewResponseSchema,
@@ -168,7 +169,7 @@ describe("API v1", () => {
     try {
       const res = await app.inject({ method: "GET", url: "/api/graph" });
       expect(res.statusCode).toBe(200);
-      expect(GraphResponseSchema.parse(json(res))).toEqual({ nodes: [], edges: [] });
+      expect(GraphResponseSchema.parse(json(res))).toEqual({ nodes: [], edges: [], capped: false });
     } finally {
       await app.close();
       await db.close();
@@ -800,6 +801,74 @@ describe("API v1", () => {
       expect(res.statusCode).toBe(200);
       const parsed = PostEdgeResponseSchema.parse(json(res));
       expect(parsed.edge.type).toBe("USED_IN");
+    } finally {
+      await app.close();
+      await db.close();
+    }
+  });
+
+  it("POST /changeset/edge-draft stages a pending edge in a draft changeset", async () => {
+    const { app, db } = await createTestApp();
+    try {
+      const from = await db.concept.create({ title: "From" });
+      const to = await db.concept.create({ title: "To" });
+
+      const res = await app.inject({
+        method: "POST",
+        url: "/api/changeset/edge-draft",
+        headers: { "content-type": "application/json" },
+        payload: JSON.stringify({
+          fromConceptId: from.id,
+          toConceptId: to.id,
+          type: "DEPENDS_ON",
+          evidenceChunkIds: []
+        })
+      });
+
+      expect(res.statusCode).toBe(200);
+      const parsed = PostDraftEdgeResponseSchema.parse(json(res));
+      expect(parsed.changeset.status).toBe("draft");
+      expect(parsed.item.entityType).toBe("edge");
+      expect(parsed.item.action).toBe("create");
+      expect(parsed.item.status).toBe("pending");
+
+      const detailRes = await app.inject({
+        method: "GET",
+        url: `/api/changeset/${parsed.changeset.id}`
+      });
+      expect(detailRes.statusCode).toBe(200);
+      const detail = GetChangesetResponseSchema.parse(json(detailRes));
+      expect(detail.items.some((i) => i.id === parsed.item.id)).toBe(true);
+    } finally {
+      await app.close();
+      await db.close();
+    }
+  });
+
+  it("POST /changeset/edge-draft returns 409 on prerequisite cycle", async () => {
+    const { app, db } = await createTestApp();
+    try {
+      const a = await db.concept.create({ title: "A" });
+      const b = await db.concept.create({ title: "B" });
+      const c = await db.concept.create({ title: "C" });
+      await db.edge.create({ fromConceptId: a.id, toConceptId: b.id, type: "PREREQUISITE_OF" });
+      await db.edge.create({ fromConceptId: b.id, toConceptId: c.id, type: "PREREQUISITE_OF" });
+
+      const res = await app.inject({
+        method: "POST",
+        url: "/api/changeset/edge-draft",
+        headers: { "content-type": "application/json" },
+        payload: JSON.stringify({
+          fromConceptId: c.id,
+          toConceptId: a.id,
+          type: "PREREQUISITE_OF",
+          evidenceChunkIds: []
+        })
+      });
+
+      expect(res.statusCode).toBe(409);
+      const body = ApiErrorSchema.parse(json(res));
+      expect(body.error.code).toBe("EDGE_WOULD_CYCLE");
     } finally {
       await app.close();
       await db.close();

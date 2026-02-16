@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import type {
   Concept,
@@ -33,16 +33,23 @@ import {
 import { LearningPathSection } from "./LearningPathSection";
 import { ConceptNoteSection } from "./ConceptNoteSection";
 
-type ConceptTab = "summary" | "note" | "sources" | "quizzes";
+export type ConceptTab = "summary" | "note" | "sources" | "quizzes";
+export type ConceptWorkspaceMode =
+  | "full"
+  | "overview"
+  | "note"
+  | "sources"
+  | "quizzes"
+  | "advanced";
 
-type SaveInput = {
+export type SaveInput = {
   id: string;
   l0: string | null;
   l1: string[];
   l2: string[];
 };
 
-export function ConceptWorkspace(props: {
+export type ConceptWorkspaceProps = {
   concept: Concept;
   onSave: (input: SaveInput) => Promise<Concept>;
   onConceptUpdated: (concept: Concept) => void;
@@ -52,10 +59,31 @@ export function ConceptWorkspace(props: {
   onShowContextPack?: (markdown: string, fileName: string) => void;
   sourcesRefreshToken?: number;
   onGraphUpdated?: () => void;
-}) {
+  mode?: ConceptWorkspaceMode;
+  hideHeader?: boolean;
+  hideSubTabs?: boolean;
+  autoGenerateQuizzesToken?: number;
+};
+
+export function ConceptWorkspace(props: ConceptWorkspaceProps) {
   const concept = props.concept;
+  const mode = props.mode ?? "full";
+  const showHeader = props.hideHeader ? false : true;
+  const showSubTabs = props.hideSubTabs ? false : mode === "full";
+
+  const forcedTab: ConceptTab =
+    mode === "note"
+      ? "note"
+      : mode === "sources"
+      ? "sources"
+      : mode === "quizzes"
+      ? "quizzes"
+      : "summary";
+  const showSummaryOverview = mode === "full" || mode === "overview";
+  const showSummaryAdvanced = mode === "full" || mode === "advanced";
 
   const [activeTab, setActiveTab] = useState<ConceptTab>("summary");
+  const activeViewTab = mode === "full" ? activeTab : forcedTab;
 
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -66,14 +94,14 @@ export function ConceptWorkspace(props: {
   const [draftL2, setDraftL2] = useState(concept.l2.join("\n"));
 
   useEffect(() => {
-    setActiveTab("summary");
+    if (mode === "full") setActiveTab("summary");
     setEditing(false);
     setSaving(false);
     setSaveError(null);
     setDraftL0(concept.l0 ?? "");
     setDraftL1(concept.l1.join("\n"));
     setDraftL2(concept.l2.join("\n"));
-  }, [concept.id, concept.l0, concept.l1, concept.l2]);
+  }, [concept.id, concept.l0, concept.l1, concept.l2, mode]);
 
   const l1Lines = useMemo(() => {
     return draftL1
@@ -105,6 +133,14 @@ export function ConceptWorkspace(props: {
     } finally {
       setSaving(false);
     }
+  }
+
+  function cancelEditing() {
+    setDraftL0(concept.l0 ?? "");
+    setDraftL1(concept.l1.join("\n"));
+    setDraftL2(concept.l2.join("\n"));
+    setEditing(false);
+    setSaveError(null);
   }
 
   const [revisions, setRevisions] = useState<DraftRevision[] | null>(null);
@@ -309,12 +345,14 @@ export function ConceptWorkspace(props: {
   const [quizzesLoading, setQuizzesLoading] = useState(false);
   const [quizzesGenerating, setQuizzesGenerating] = useState(false);
   const [quizzesError, setQuizzesError] = useState<string | null>(null);
+  const lastAutoGenerateQuizzesTokenRef = useRef<number | null>(null);
 
   useEffect(() => {
     setQuizzes(null);
     setQuizzesLoading(false);
     setQuizzesGenerating(false);
     setQuizzesError(null);
+    lastAutoGenerateQuizzesTokenRef.current = null;
   }, [concept.id]);
 
   async function loadQuizzes() {
@@ -342,6 +380,16 @@ export function ConceptWorkspace(props: {
       setQuizzesGenerating(false);
     }
   }
+
+  useEffect(() => {
+    const token = props.autoGenerateQuizzesToken;
+    if (typeof token !== "number" || token <= 0) return;
+    if (token === lastAutoGenerateQuizzesTokenRef.current) return;
+    lastAutoGenerateQuizzesTokenRef.current = token;
+    void generateQuizzes();
+    // generateQuizzes is intentionally omitted to keep this trigger token-driven only.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [props.autoGenerateQuizzesToken, concept.id]);
 
   function parseDuplicateIds(input: string): string[] {
     const tokens = input
@@ -514,20 +562,81 @@ export function ConceptWorkspace(props: {
 
   return (
     <div className="conceptWorkspace">
-      <div className="conceptHeader">
-        <div>
-          <h3 className="conceptTitle" data-testid="concept-title">
-            {concept.title}
-          </h3>
-          <div className="conceptMeta">
-            <span>
-              Type: {concept.kind}
-              {concept.module ? ` • Module: ${concept.module}` : ""}
-            </span>
+      {showHeader ? (
+        <div className="conceptHeader">
+          <div>
+            <h3 className="conceptTitle" data-testid="concept-title">
+              {concept.title}
+            </h3>
+            <div className="conceptMeta">
+              <span>
+                Type: {concept.kind}
+                {concept.module ? ` • Module: ${concept.module}` : ""}
+              </span>
+            </div>
+          </div>
+
+          <div className="buttonRow">
+            {!editing ? (
+              <button
+                type="button"
+                className="secondaryButton"
+                onClick={() => setEditing(true)}
+              >
+                Edit
+              </button>
+            ) : (
+              <>
+                <button
+                  type="button"
+                  className="primaryButton"
+                  onClick={save}
+                  disabled={saving}
+                >
+                  Save
+                </button>
+                <button
+                  type="button"
+                  className="ghostButton"
+                  onClick={cancelEditing}
+                  disabled={saving}
+                >
+                  Cancel
+                </button>
+              </>
+            )}
           </div>
         </div>
+      ) : null}
 
-        <div className="buttonRow">
+      {showSubTabs ? (
+        <div className="conceptSubTabs" data-testid="concept-sub-tabs">
+          {(["summary", "note", "sources", "quizzes"] as const).map((tab) => (
+            <button
+              key={tab}
+              type="button"
+              className={`tab${activeTab === tab ? " tabActive" : ""}`}
+              onClick={() => setActiveTab(tab)}
+              data-testid={`tab-${tab}`}
+            >
+              {tab.charAt(0).toUpperCase() + tab.slice(1)}
+            </button>
+          ))}
+        </div>
+      ) : null}
+
+      {saveError ? (
+        <p role="alert" className="errorText">
+          {saveError}
+        </p>
+      ) : null}
+
+      {activeViewTab === "summary" ? (
+      <>
+      {showSummaryOverview ? (
+      <>
+      {!showHeader ? (
+        <div className="buttonRow conceptInlineEditorActions">
           {!editing ? (
             <button
               type="button"
@@ -549,13 +658,7 @@ export function ConceptWorkspace(props: {
               <button
                 type="button"
                 className="ghostButton"
-                onClick={() => {
-                  setDraftL0(concept.l0 ?? "");
-                  setDraftL1(concept.l1.join("\n"));
-                  setDraftL2(concept.l2.join("\n"));
-                  setEditing(false);
-                  setSaveError(null);
-                }}
+                onClick={cancelEditing}
                 disabled={saving}
               >
                 Cancel
@@ -563,32 +666,15 @@ export function ConceptWorkspace(props: {
             </>
           )}
         </div>
-      </div>
-
-      <div className="conceptSubTabs" data-testid="concept-sub-tabs">
-        {(["summary", "note", "sources", "quizzes"] as const).map((tab) => (
-          <button
-            key={tab}
-            type="button"
-            className={`tab${activeTab === tab ? " tabActive" : ""}`}
-            onClick={() => setActiveTab(tab)}
-            data-testid={`tab-${tab}`}
-          >
-            {tab.charAt(0).toUpperCase() + tab.slice(1)}
-          </button>
-        ))}
-      </div>
-
-      {saveError ? (
-        <p role="alert" className="errorText">
-          {saveError}
-        </p>
       ) : null}
 
-      {activeTab === "summary" ? (
-      <>
+      <p className="mutedText helperText" data-testid="summary-levels-help">
+        L0 = one-line definition, L1 = key bullets, L2 = deeper mechanism/steps. These are
+        summary levels, not graph neighborhood depth.
+      </p>
       <div className="conceptSection" aria-label="Summaries">
         <div className="sectionTitle">L0</div>
+        <p className="mutedText helperText">One-line definition (quick recall).</p>
         {!editing ? (
           concept.l0 ? (
             <p>{concept.l0}</p>
@@ -608,6 +694,7 @@ export function ConceptWorkspace(props: {
 
       <div className="conceptSection" aria-label="Bullets">
         <div className="sectionTitle">L1</div>
+        <p className="mutedText helperText">Key bullets (what matters most).</p>
         {!editing ? (
           concept.l1.length > 0 ? (
             <ul className="bullets">
@@ -634,6 +721,7 @@ export function ConceptWorkspace(props: {
 
       <div className="conceptSection" aria-label="Mechanism">
         <div className="sectionTitle">L2</div>
+        <p className="mutedText helperText">Deeper mechanism/steps (how it works).</p>
         {!editing ? (
           concept.l2.length > 0 ? (
             <ol className="bullets">
@@ -665,7 +753,11 @@ export function ConceptWorkspace(props: {
           onOpenConcept={props.onOpenConcept}
         />
       ) : null}
+      </>
+      ) : null}
 
+      {showSummaryAdvanced ? (
+      <>
       <div className="conceptSection" aria-label="Context" data-testid="concept-context-section">
         <div className="sectionTitle">Context</div>
 
@@ -913,8 +1005,10 @@ export function ConceptWorkspace(props: {
       </div>
       </>
       ) : null}
+      </>
+      ) : null}
 
-      {activeTab === "note" ? (
+      {activeViewTab === "note" ? (
         <ConceptNoteSection
           conceptId={concept.id}
           conceptTitle={concept.title}
@@ -926,7 +1020,7 @@ export function ConceptWorkspace(props: {
         />
       ) : null}
 
-      {activeTab === "sources" ? (
+      {activeViewTab === "sources" ? (
       <div className="conceptSection" aria-label="Sources">
         <div className="sectionTitle">Sources</div>
 
@@ -1028,7 +1122,7 @@ export function ConceptWorkspace(props: {
       </div>
       ) : null}
 
-      {activeTab === "quizzes" ? (
+      {activeViewTab === "quizzes" ? (
       <div className="conceptSection" aria-label="Quizzes">
         <div className="sectionTitle">Quizzes</div>
 
@@ -1104,7 +1198,7 @@ export function ConceptWorkspace(props: {
       </div>
       ) : null}
 
-      {activeTab === "summary" ? (
+      {activeViewTab === "summary" && showSummaryAdvanced ? (
       <div className="conceptSection" aria-label="Merge">
         <div className="sectionTitle">Merge duplicates</div>
 

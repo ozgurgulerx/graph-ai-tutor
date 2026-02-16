@@ -2,6 +2,7 @@ import { expect, test } from "@playwright/test";
 
 test("mastery overlay toggles mastery bucket classes on atlas nodes", async ({ page }) => {
   await page.goto("/");
+  await page.getByRole("button", { name: /^filters$/i }).click();
 
   await page.waitForFunction(() => {
     const cy = (window as unknown as { __CY__?: { nodes: () => { length: number } } }).__CY__;

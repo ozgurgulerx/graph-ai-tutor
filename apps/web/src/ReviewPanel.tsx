@@ -12,7 +12,9 @@ function getConceptTitle(graph: GraphResponse | null, conceptId: string): string
 export function ReviewPanel(props: {
   graph: GraphResponse | null;
   onOpenConcept: (conceptId: string) => void;
+  onDueCountChange?: (count: number) => void;
 }) {
+  const onDueCountChange = props.onDueCountChange;
   const [items, setItems] = useState<QuizItem[] | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -24,13 +26,15 @@ export function ReviewPanel(props: {
     try {
       const res = await getReviewDue(20);
       setItems(res.items);
+      onDueCountChange?.(res.items.length);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load due review items");
       setItems(null);
+      onDueCountChange?.(0);
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [onDueCountChange]);
 
   useEffect(() => {
     void refresh();
@@ -141,4 +145,3 @@ export function ReviewPanel(props: {
     </div>
   );
 }
-

@@ -1938,6 +1938,37 @@ export function createRepositories(pool: PgPoolLike) {
         }));
       },
 
+      async listSummariesByConceptIdsWithConfidence(
+        conceptIds: string[],
+        limit: number
+      ): Promise<(EdgeSummary & { confidence: number | null })[]> {
+        if (conceptIds.length === 0) return [];
+        const placeholders = conceptIds.map((_, i) => `$${i + 1}`).join(", ");
+        const limitIndex = conceptIds.length + 1;
+        const res = await pool.query<{
+          id: string;
+          from_concept_id: string;
+          to_concept_id: string;
+          type: EdgeType;
+          confidence: number | null;
+        }>(
+          `SELECT id, from_concept_id, to_concept_id, type, confidence
+           FROM edge
+           WHERE from_concept_id IN (${placeholders})
+              OR to_concept_id IN (${placeholders})
+           ORDER BY created_at ASC
+           LIMIT $${limitIndex}`,
+          [...conceptIds, limit]
+        );
+        return res.rows.map((r) => ({
+          id: r.id,
+          fromConceptId: r.from_concept_id,
+          toConceptId: r.to_concept_id,
+          type: r.type,
+          confidence: r.confidence
+        }));
+      },
+
       /**
        * BFS neighborhood via recursive CTE — single round-trip.
        * Returns the set of concept IDs reachable within `depth` hops from `centerId`.

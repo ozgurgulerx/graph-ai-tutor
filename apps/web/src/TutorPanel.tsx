@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import type { EvidenceChunk, GraphResponse, PostTutorResponse } from "@graph-ai-tutor/shared";
 
@@ -10,9 +10,47 @@ function byId<T extends { id: string }>(items: T[] | undefined): Map<string, T> 
   return map;
 }
 
+type TutorSelectionContext = {
+  conceptId?: string | null;
+  edgeId?: string | null;
+  lensNodeIds?: string[];
+  lensEdgeIds?: string[];
+  evidenceChunkIds?: string[];
+};
+
+function buildTutorQuestionPayload(
+  question: string,
+  context?: TutorSelectionContext
+): string {
+  const trimmed = question.trim();
+  if (!trimmed) return "";
+  if (!context) return trimmed;
+
+  const payload = {
+    conceptId: context.conceptId ?? null,
+    edgeId: context.edgeId ?? null,
+    lensNodeIds: context.lensNodeIds?.filter(Boolean) ?? [],
+    lensEdgeIds: context.lensEdgeIds?.filter(Boolean) ?? [],
+    evidenceChunkIds: context.evidenceChunkIds?.filter(Boolean) ?? []
+  };
+  const hasContext =
+    payload.conceptId !== null ||
+    payload.edgeId !== null ||
+    payload.lensNodeIds.length > 0 ||
+    payload.lensEdgeIds.length > 0 ||
+    payload.evidenceChunkIds.length > 0;
+  if (!hasContext) return trimmed;
+
+  const contextEnvelope = `[selection_context]${JSON.stringify(payload)}[/selection_context]`;
+  return `${contextEnvelope}\n\n${trimmed}`;
+}
+
 export function TutorPanel(props: {
   graph: GraphResponse | null;
   onHighlightConceptIds: (ids: string[]) => void;
+  selectionContext?: TutorSelectionContext;
+  seedQuestion?: string;
+  seedQuestionToken?: number;
 }) {
   const [question, setQuestion] = useState("");
   const [loading, setLoading] = useState(false);
@@ -24,13 +62,22 @@ export function TutorPanel(props: {
 
   const citationMap = useMemo(() => byId(response?.citations), [response]);
 
+  useEffect(() => {
+    if (typeof props.seedQuestionToken !== "number" || props.seedQuestionToken <= 0) return;
+    const seed = props.seedQuestion?.trim();
+    if (!seed) return;
+    setQuestion(seed);
+  }, [props.seedQuestion, props.seedQuestionToken]);
+
   async function ask() {
     const q = question.trim();
     if (!q) return;
     setLoading(true);
     setError(null);
     try {
-      const res = await postTutor({ question: q });
+      const res = await postTutor({
+        question: buildTutorQuestionPayload(q, props.selectionContext)
+      });
       setResponse(res);
       props.onHighlightConceptIds(res.result.used_concept_ids);
     } catch (err) {
@@ -178,4 +225,3 @@ export function TutorPanel(props: {
     </div>
   );
 }
-
