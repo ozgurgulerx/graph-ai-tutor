@@ -44,6 +44,9 @@ vi.mock("cytoscape", () => {
       edges: () => createCollection(),
       zoom: () => 1,
       resize: () => undefined,
+      autoungrabify: () => undefined,
+      fit: () => undefined,
+      container: () => null,
       batch: (fn: () => void) => fn(),
       animate: () => undefined,
       $id: () => ({
@@ -55,5 +58,8 @@ vi.mock("cytoscape", () => {
     return cy;
   }
 
-  return { default: () => createCy() };
+  const cytoscapeFn = Object.assign(() => createCy(), {
+    use: () => undefined
+  });
+  return { default: cytoscapeFn };
 });

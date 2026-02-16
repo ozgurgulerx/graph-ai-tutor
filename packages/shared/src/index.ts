@@ -14,6 +14,8 @@ export {
 export { isPrereqEdge, getPrereqDirection, EDGE_TYPE_CATEGORIES, getDefaultEdgeTypes, type EdgeTypeCategory } from "./edge-semantics";
 export { computeGraphLens, type GraphLensInput, type GraphLensResult } from "./graph-lens";
 export { wouldCreatePrereqCycle, type CycleCheckResult } from "./cycle-detection";
+export { computePageRank, type PageRankEdge, type PageRankOptions } from "./pagerank";
+export { detectCommunities, type CommunityEdge, type CommunityDetectionOptions } from "./community-detection";
 
 export {
   ApiErrorSchema,
@@ -78,6 +80,10 @@ export {
   type GraphLensQuery,
   GraphLensResponseSchema,
   type GraphLensResponse,
+  ShortestPathQuerySchema,
+  type ShortestPathQuery,
+  ShortestPathResponseSchema,
+  type ShortestPathResponse,
   LensSideSchema,
   type LensSide,
   LensNodeMetadataSchema,

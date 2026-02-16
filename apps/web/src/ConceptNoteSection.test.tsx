@@ -18,7 +18,7 @@ vi.mock("./api/client", () => {
       chunkCount: 1
     })),
     getUniversalSearch: vi.fn(async () => ({
-      concepts: [{ id: "c_attn", title: "Attention", kind: "Concept", module: null, masteryScore: 0, rank: 0, titleHighlight: null, snippetHighlight: null }],
+      concepts: [{ id: "c_attn", title: "Attention", kind: "Concept", module: null, masteryScore: 0, pagerank: 0, community: null, rank: 0, titleHighlight: null, snippetHighlight: null }],
       sources: [],
       evidence: []
     }))
@@ -107,7 +107,7 @@ describe("ConceptNoteSection", () => {
     const api = await import("./api/client");
     vi.mocked(api.getConceptBacklinks).mockResolvedValueOnce({
       concepts: [
-        { id: "c2", title: "Transformer", kind: "Concept", module: null, masteryScore: 0 }
+        { id: "c2", title: "Transformer", kind: "Concept", module: null, masteryScore: 0, pagerank: 0, community: null }
       ]
     });
 

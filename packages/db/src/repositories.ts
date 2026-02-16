@@ -48,6 +48,8 @@ export type ConceptSummary = {
   kind: NodeKind;
   module: string | null;
   masteryScore: number;
+  pagerank: number;
+  community: string | null;
 };
 
 export type ExactConceptSearchResult = ConceptSummary & {
@@ -799,13 +801,17 @@ export function createRepositories(pool: PgPoolLike) {
           kind: NodeKind;
           module: string | null;
           mastery_score: unknown;
-        }>("SELECT id, title, kind, module, mastery_score FROM concept ORDER BY title ASC");
+          pagerank: unknown;
+          community: string | null;
+        }>("SELECT id, title, kind, module, mastery_score, COALESCE(pagerank, 0) AS pagerank, community FROM concept ORDER BY title ASC");
         return res.rows.map((r) => ({
           id: r.id,
           title: r.title,
           kind: r.kind,
           module: r.module,
-          masteryScore: toNumber(r.mastery_score)
+          masteryScore: toNumber(r.mastery_score),
+          pagerank: toNumber(r.pagerank),
+          community: r.community ?? null
         }));
       },
 
@@ -818,8 +824,10 @@ export function createRepositories(pool: PgPoolLike) {
           kind: NodeKind;
           module: string | null;
           mastery_score: unknown;
+          pagerank: unknown;
+          community: string | null;
         }>(
-          `SELECT id, title, kind, module, mastery_score
+          `SELECT id, title, kind, module, mastery_score, COALESCE(pagerank, 0) AS pagerank, community
            FROM concept
            WHERE id IN (${placeholders})
            ORDER BY title ASC`,
@@ -830,7 +838,9 @@ export function createRepositories(pool: PgPoolLike) {
           title: r.title,
           kind: r.kind,
           module: r.module,
-          masteryScore: toNumber(r.mastery_score)
+          masteryScore: toNumber(r.mastery_score),
+          pagerank: toNumber(r.pagerank),
+          community: r.community ?? null
         }));
       },
 
@@ -842,8 +852,10 @@ export function createRepositories(pool: PgPoolLike) {
           kind: NodeKind;
           module: string | null;
           mastery_score: unknown;
+          pagerank: unknown;
+          community: string | null;
         }>(
-          `SELECT id, title, kind, module, mastery_score
+          `SELECT id, title, kind, module, mastery_score, COALESCE(pagerank, 0) AS pagerank, community
            FROM concept
            WHERE title LIKE $1 OR COALESCE(l0, '') LIKE $1
            ORDER BY title ASC
@@ -855,7 +867,9 @@ export function createRepositories(pool: PgPoolLike) {
           title: r.title,
           kind: r.kind,
           module: r.module,
-          masteryScore: toNumber(r.mastery_score)
+          masteryScore: toNumber(r.mastery_score),
+          pagerank: toNumber(r.pagerank),
+          community: r.community ?? null
         }));
       },
 
@@ -918,6 +932,8 @@ export function createRepositories(pool: PgPoolLike) {
             kind: r.kind,
             module: r.module,
             masteryScore: toNumber(r.mastery_score),
+            pagerank: 0,
+            community: null,
             rank: typeof r.rank === "number" && Number.isFinite(r.rank) ? r.rank : 0,
             titleHighlight: r.title_highlight,
             snippetHighlight: r.snippet_highlight
@@ -949,6 +965,8 @@ export function createRepositories(pool: PgPoolLike) {
           kind: r.kind,
           module: r.module,
           masteryScore: toNumber(r.mastery_score),
+          pagerank: 0,
+          community: null,
           rank: 0,
           titleHighlight: highlightText(r.title, query),
           snippetHighlight: highlightText(r.l0 ?? "", query)
@@ -978,7 +996,9 @@ export function createRepositories(pool: PgPoolLike) {
           title: r.title,
           kind: r.kind,
           module: r.module,
-          masteryScore: toNumber(r.mastery_score)
+          masteryScore: toNumber(r.mastery_score),
+          pagerank: 0,
+          community: null
         }));
       },
 
@@ -1044,6 +1064,48 @@ export function createRepositories(pool: PgPoolLike) {
           count: ids.length,
           conceptIds: ids
         }));
+      },
+
+      /** Batch-update pagerank scores. */
+      async updatePageRanks(ranks: Map<string, number>): Promise<void> {
+        if (ranks.size === 0) return;
+        const client = await pool.connect();
+        try {
+          await client.query("BEGIN");
+          for (const [id, score] of ranks) {
+            await client.query(
+              "UPDATE concept SET pagerank = $2 WHERE id = $1",
+              [id, score]
+            );
+          }
+          await client.query("COMMIT");
+        } catch (err) {
+          await client.query("ROLLBACK");
+          throw err;
+        } finally {
+          client.release();
+        }
+      },
+
+      /** Batch-update community labels. */
+      async updateCommunities(communities: Map<string, string>): Promise<void> {
+        if (communities.size === 0) return;
+        const client = await pool.connect();
+        try {
+          await client.query("BEGIN");
+          for (const [id, community] of communities) {
+            await client.query(
+              "UPDATE concept SET community = $2 WHERE id = $1",
+              [id, community]
+            );
+          }
+          await client.query("COMMIT");
+        } catch (err) {
+          await client.query("ROLLBACK");
+          throw err;
+        } finally {
+          client.release();
+        }
       }
     },
 
@@ -1230,14 +1292,18 @@ export function createRepositories(pool: PgPoolLike) {
             title: canonicalRow.title,
             kind: canonicalRow.kind,
             module: canonicalRow.module,
-            masteryScore: toNumber(canonicalRow.mastery_score)
+            masteryScore: toNumber(canonicalRow.mastery_score),
+            pagerank: 0,
+            community: null
           },
           duplicates: dupRes.rows.map((r) => ({
             id: r.id,
             title: r.title,
             kind: r.kind,
             module: r.module,
-            masteryScore: toNumber(r.mastery_score)
+            masteryScore: toNumber(r.mastery_score),
+            pagerank: 0,
+            community: null
           })),
           edgeChanges,
           counts: {
@@ -1870,6 +1936,81 @@ export function createRepositories(pool: PgPoolLike) {
           toConceptId: r.to_concept_id,
           type: r.type
         }));
+      },
+
+      /**
+       * BFS neighborhood via recursive CTE — single round-trip.
+       * Returns the set of concept IDs reachable within `depth` hops from `centerId`.
+       * If `typeFilter` is provided, only edges of that type are traversed.
+       * Falls back to null if the DB doesn't support recursive CTEs (e.g. pg-mem).
+       */
+      async listNeighborhoodCTE(
+        centerId: string,
+        depth: number,
+        typeFilter?: string
+      ): Promise<Set<string> | null> {
+        const typeClause = typeFilter
+          ? "AND e.type = $3"
+          : "";
+        const params: unknown[] = [centerId, depth];
+        if (typeFilter) params.push(typeFilter);
+
+        try {
+          const res = await pool.query<{ concept_id: string }>(
+            `WITH RECURSIVE neighborhood AS (
+               SELECT $1::text AS concept_id, 0 AS depth
+               UNION
+               SELECT CASE WHEN e.from_concept_id = n.concept_id
+                           THEN e.to_concept_id ELSE e.from_concept_id END,
+                      n.depth + 1
+               FROM neighborhood n
+               JOIN edge e ON (e.from_concept_id = n.concept_id OR e.to_concept_id = n.concept_id)
+                 ${typeClause}
+               WHERE n.depth < $2
+             ) SELECT DISTINCT concept_id FROM neighborhood`,
+            params
+          );
+          return new Set(res.rows.map((r) => r.concept_id));
+        } catch {
+          // pg-mem doesn't support recursive CTEs — signal caller to use fallback
+          return null;
+        }
+      },
+
+      /**
+       * Find shortest path between two concepts via recursive CTE.
+       * Returns an ordered array of concept IDs (from → to), or null if
+       * no path exists within maxDepth hops or if CTE is unsupported.
+       */
+      async findShortestPath(
+        fromId: string,
+        toId: string,
+        maxDepth = 10
+      ): Promise<string[] | null> {
+        try {
+          const res = await pool.query<{ path: string[] }>(
+            `WITH RECURSIVE search AS (
+               SELECT $1::text AS current_id, ARRAY[$1::text] AS path, 0 AS depth
+               UNION ALL
+               SELECT CASE WHEN e.from_concept_id = s.current_id
+                           THEN e.to_concept_id ELSE e.from_concept_id END,
+                      s.path || CASE WHEN e.from_concept_id = s.current_id
+                                     THEN e.to_concept_id ELSE e.from_concept_id END,
+                      s.depth + 1
+               FROM search s
+               JOIN edge e ON (e.from_concept_id = s.current_id OR e.to_concept_id = s.current_id)
+               WHERE s.depth < $3
+                 AND NOT (CASE WHEN e.from_concept_id = s.current_id
+                               THEN e.to_concept_id ELSE e.from_concept_id END) = ANY(s.path)
+             )
+             SELECT path FROM search WHERE current_id = $2
+             ORDER BY depth ASC LIMIT 1`,
+            [fromId, toId, maxDepth]
+          );
+          return res.rows[0]?.path ?? null;
+        } catch {
+          return null;
+        }
       }
     },
 
@@ -3831,6 +3972,17 @@ export function createRepositories(pool: PgPoolLike) {
         if (!item) throw new Error(`Training session item not found: ${input.id}`);
         return item;
       }
+    },
+
+    /** MAX(created_at) across concept + edge tables — used for ETag / cache invalidation. */
+    async getGraphVersion(): Promise<string> {
+      const res = await pool.query<{ v: unknown }>(
+        `SELECT GREATEST(
+           (SELECT COALESCE(MAX(updated_at), 0) FROM concept),
+           (SELECT COALESCE(MAX(created_at), 0) FROM edge)
+         ) AS v`
+      );
+      return String(toNumber(res.rows[0]?.v));
     }
   };
 }

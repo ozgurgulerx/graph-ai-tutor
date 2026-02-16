@@ -1,10 +1,12 @@
 import cytoscape from "cytoscape";
+import fcose from "cytoscape-fcose";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+
+cytoscape.use(fcose);
 
 import {
   getDefaultEdgeTypes,
   type Concept,
-  type ConceptSummary,
   type EdgeType,
   type EdgeTypeCategory,
   type GetEdgeEvidenceResponse,
@@ -23,11 +25,12 @@ import {
   getGraphLens,
   getUniversalSearch,
   invalidateConceptCache,
+  invalidateGraphCache,
   postConcept,
-  postEdge,
-  prefetchConcept
+  postEdge
 } from "./api/client";
 import { CaptureModal } from "./CaptureModal";
+import { ConceptTree } from "./ConceptTree";
 import { ConceptWorkspace } from "./ConceptWorkspace";
 import { EdgeEvidencePanel } from "./EdgeEvidencePanel";
 import { EdgeTypeFilter } from "./EdgeTypeFilter";
@@ -37,7 +40,10 @@ import { ConceptSkeleton, SkeletonBlock } from "./Skeleton";
 import { SourcePanel } from "./SourcePanel";
 import { TutorPanel } from "./TutorPanel";
 import { CommandPalette } from "./CommandPalette";
+import { useLayoutWorker } from "./useLayoutWorker";
 import { EdgeTypePicker } from "./EdgeTypePicker";
+import type { InteractionMode } from "./GraphNavToolbar";
+import { GraphNavToolbar } from "./GraphNavToolbar";
 import type { EdgeDraftState } from "./LensEditToolbar";
 import { LensEditToolbar } from "./LensEditToolbar";
 import { TrainingPanel } from "./TrainingPanel";
@@ -102,6 +108,7 @@ function buildElements(
         label: n.title,
         module: n.module,
         masteryScore: typeof n.masteryScore === "number" ? n.masteryScore : 0,
+        pagerank: typeof n.pagerank === "number" ? n.pagerank : 0,
         ...(parent ? { parent } : {})
       }
     });
@@ -283,6 +290,7 @@ function applyFocusMode(
 }
 
 const ANIM_NODE_THRESHOLD = 200;
+const WORKER_LAYOUT_THRESHOLD = 300;
 
 const LENS_X_GAP = 250;
 const LENS_Y_GAP = 80;
@@ -374,6 +382,9 @@ function applyLensMode(
   }
 }
 
+const VIEWPORT_CULL_MARGIN = 0.2;
+const VIEWPORT_CULL_NODE_THRESHOLD = 500;
+
 function applySemanticZoom(
   cy: cytoscape.Core,
   opts: {
@@ -385,6 +396,32 @@ function applySemanticZoom(
   }
 ) {
   const zoom = cy.zoom();
+  const nodeCount = cy.nodes().length;
+
+  // Viewport culling: hide nodes far outside the visible area for large graphs
+  if (nodeCount >= VIEWPORT_CULL_NODE_THRESHOLD) {
+    const ext = cy.extent();
+    const marginW = (ext.x2 - ext.x1) * VIEWPORT_CULL_MARGIN;
+    const marginH = (ext.y2 - ext.y1) * VIEWPORT_CULL_MARGIN;
+    const minX = ext.x1 - marginW;
+    const maxX = ext.x2 + marginW;
+    const minY = ext.y1 - marginH;
+    const maxY = ext.y2 + marginH;
+
+    cy.batch(() => {
+      cy.nodes().forEach((node) => {
+        if (node.isParent?.()) return;
+        const pos = node.position();
+        if (pos.x < minX || pos.x > maxX || pos.y < minY || pos.y > maxY) {
+          node.addClass("viewportCulled");
+        } else {
+          node.removeClass("viewportCulled");
+        }
+      });
+    });
+  } else {
+    cy.nodes().removeClass("viewportCulled");
+  }
 
   // In lens mode, all lens nodes show labels; others already hidden
   if (opts.viewMode === "lens" && opts.lensData) {
@@ -440,6 +477,7 @@ function AtlasView({
   const containerRef = useRef<HTMLDivElement | null>(null);
   const cyRef = useRef<cytoscape.Core | null>(null);
   const preLensPositionsRef = useRef<Map<string, { x: number; y: number }> | null>(null);
+  const runLayoutInWorker = useLayoutWorker();
 
   const onSelectRef = useRef(onSelectConcept);
   useEffect(() => {
@@ -523,6 +561,8 @@ function AtlasView({
             "text-background-padding": "3px",
             "text-background-shape": "roundrectangle",
             "background-color": "#111827",
+            width: "mapData(pagerank, 0, 0.05, 20, 50)",
+            height: "mapData(pagerank, 0, 0.05, 20, 50)",
             color: "#0f172a",
             "transition-property": "opacity, background-color, border-width, border-color, width, height",
             "transition-duration": 300,
@@ -684,6 +724,12 @@ function AtlasView({
           }
         },
         {
+          selector: "node.viewportCulled",
+          style: {
+            display: "none"
+          }
+        },
+        {
           selector: "$node > node",
           style: {
             "background-color": "#f1f5f9",
@@ -706,7 +752,7 @@ function AtlasView({
           }
         }
       ],
-      layout: { name: "cose", animate: false, fit: true }
+      layout: { name: "fcose", animate: false, fit: true } as cytoscape.LayoutOptions
     });
 
     const onTapNode = (evt: cytoscape.EventObject) => {
@@ -782,60 +828,91 @@ function AtlasView({
   }, [onCyReady]);
 
   useEffect(() => {
-    const cy = cyRef.current;
-    if (!cy) return;
+    const cyVal = cyRef.current;
+    if (!cyVal) return;
+    const cy: cytoscape.Core = cyVal;
 
     preLensPositionsRef.current = null;
 
     cy.elements().remove();
-    if (elements.length > 0) {
-      cy.add(elements);
+    if (elements.length === 0) return;
+
+    cy.add(elements);
+
+    const nodeCount = cy.nodes().length;
+    const useWorker = nodeCount > WORKER_LAYOUT_THRESHOLD && typeof Worker !== "undefined";
+
+    function applyPostLayout() {
+      applyEdgeFilter(cy, allowlistRef.current, edgeVisModeRef.current);
+      applyConceptHighlight(cy, highlightRef.current);
+      applyChangesetHighlight(cy, changesetHighlightRef.current);
+      applyPinnedNodes(cy, pinnedRef.current);
+
+      // Compute top-K by degree for semantic zoom
+      const leafNodes = cy.nodes().filter((n: cytoscape.NodeSingular) => !n.isParent());
+      const sorted = leafNodes.sort((a: cytoscape.NodeSingular, b: cytoscape.NodeSingular) =>
+        b.degree(false) - a.degree(false)
+      );
+      const topK = new Set<string>();
+      const limit = Math.min(SEMANTIC_ZOOM_TOP_K, sorted.length);
+      for (let i = 0; i < limit; i++) {
+        topK.add(sorted[i].id());
+      }
+      topKRef.current = topK;
+
+      applySemanticZoom(cy, {
+        viewMode: viewModeRef.current,
+        lensData: lensDataRef.current,
+        selectedConceptId: selectedConceptIdRef.current,
+        pinnedConceptIds: pinnedRef.current,
+        topKNodeIds: topK
+      });
+
+      // If currently in lens mode, save fresh positions and reapply lens
+      if (viewModeRef.current === "lens" && lensDataRef.current) {
+        const saved = new Map<string, { x: number; y: number }>();
+        cy.nodes().forEach((n) => {
+          const pos = n.position();
+          saved.set(n.id(), { x: pos.x, y: pos.y });
+        });
+        preLensPositionsRef.current = saved;
+        applyLensMode(cy, { enabled: true, data: lensDataRef.current });
+        cy.animate({ fit: { eles: cy.nodes().not(".lensHidden"), padding: 60 }, duration: 400 });
+      }
+    }
+
+    if (useWorker) {
+      // Off-main-thread layout for large graphs
+      const workerNodes = cy.nodes().map((n) => ({
+        group: "nodes" as const,
+        data: n.data() as { id: string; parent?: string }
+      }));
+      const workerEdges = cy.edges().map((e) => ({
+        group: "edges" as const,
+        data: e.data() as { id: string; source: string; target: string }
+      }));
+      runLayoutInWorker({ nodes: workerNodes, edges: workerEdges }, (positions) => {
+        if (cyRef.current !== cy) return; // stale
+        cy.batch(() => {
+          for (const { id, x, y } of positions) {
+            const node = cy.$id(id);
+            if (!node.empty()) node.position({ x, y });
+          }
+        });
+        cy.fit();
+        applyPostLayout();
+      });
+    } else {
       cy.layout({
-        name: "cose",
-        animate: (elements.length <= ANIM_NODE_THRESHOLD ? "end" : false) as boolean,
+        name: "fcose",
+        animate: (elements.length <= ANIM_NODE_THRESHOLD ? "end" : false),
         animationDuration: 600,
         animationEasing: "ease-out-cubic",
         fit: true
-      }).run();
+      } as cytoscape.LayoutOptions).run();
+      applyPostLayout();
     }
-
-    applyEdgeFilter(cy, allowlistRef.current, edgeVisModeRef.current);
-    applyConceptHighlight(cy, highlightRef.current);
-    applyChangesetHighlight(cy, changesetHighlightRef.current);
-    applyPinnedNodes(cy, pinnedRef.current);
-
-    // Compute top-K by degree for semantic zoom
-    const leafNodes = cy.nodes().filter((n: cytoscape.NodeSingular) => !n.isParent());
-    const sorted = leafNodes.sort((a: cytoscape.NodeSingular, b: cytoscape.NodeSingular) =>
-      b.degree(false) - a.degree(false)
-    );
-    const topK = new Set<string>();
-    const limit = Math.min(SEMANTIC_ZOOM_TOP_K, sorted.length);
-    for (let i = 0; i < limit; i++) {
-      topK.add(sorted[i].id());
-    }
-    topKRef.current = topK;
-
-    applySemanticZoom(cy, {
-      viewMode: viewModeRef.current,
-      lensData: lensDataRef.current,
-      selectedConceptId: selectedConceptIdRef.current,
-      pinnedConceptIds: pinnedRef.current,
-      topKNodeIds: topK
-    });
-
-    // If currently in lens mode, save fresh COSE positions and reapply lens
-    if (viewModeRef.current === "lens" && lensDataRef.current) {
-      const saved = new Map<string, { x: number; y: number }>();
-      cy.nodes().forEach((n) => {
-        const pos = n.position();
-        saved.set(n.id(), { x: pos.x, y: pos.y });
-      });
-      preLensPositionsRef.current = saved;
-      applyLensMode(cy, { enabled: true, data: lensDataRef.current });
-      cy.animate({ fit: { eles: cy.nodes().not(".lensHidden"), padding: 60 }, duration: 400 });
-    }
-  }, [elements]);
+  }, [elements, runLayoutInWorker]);
 
   useEffect(() => {
     const cy = cyRef.current;
@@ -936,46 +1013,6 @@ function AtlasView({
   return <div className="atlas" data-testid="atlas" ref={containerRef} />;
 }
 
-function ConceptListItem(props: {
-  node: ConceptSummary;
-  selected: boolean;
-  onSelect: (id: string) => void;
-}) {
-  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const { node, selected, onSelect } = props;
-
-  function handleMouseEnter() {
-    timerRef.current = setTimeout(() => {
-      prefetchConcept(node.id);
-    }, 200);
-  }
-
-  function handleMouseLeave() {
-    if (timerRef.current) {
-      clearTimeout(timerRef.current);
-      timerRef.current = null;
-    }
-  }
-
-  return (
-    <li>
-      <button
-        type="button"
-        className="nodeButton"
-        onClick={() => onSelect(node.id)}
-        onMouseEnter={handleMouseEnter}
-        onMouseLeave={handleMouseLeave}
-        aria-current={selected ? "true" : undefined}
-      >
-        <span className="nodeTitle">{node.title}</span>
-        <span className="nodeModule">
-          {node.kind}
-          {node.module ? ` • ${node.module}` : ""}
-        </span>
-      </button>
-    </li>
-  );
-}
 
 export default function App() {
   const { shellRef, leftDividerProps, rightDividerProps, gridTemplateColumns } = usePanelResize();
@@ -1044,6 +1081,7 @@ export default function App() {
   const [trainingPanelOpen, setTrainingPanelOpen] = useState(false);
 
   const [lensRefreshToken, setLensRefreshToken] = useState(0);
+  const [interactionMode, setInteractionMode] = useState<InteractionMode>("pointer");
   const [edgeDraftState, setEdgeDraftState] = useState<EdgeDraftState>({ phase: "idle" });
   const [lensEditError, setLensEditError] = useState<string | null>(null);
   const [lensEditSaving, setLensEditSaving] = useState(false);
@@ -1093,6 +1131,12 @@ export default function App() {
       cy.on("viewport", () => setDebugZoom(cy.zoom()));
     }
   }, []);
+
+  useEffect(() => {
+    const cy = atlasCyRef.current;
+    if (!cy) return;
+    cy.autoungrabify(interactionMode === "pan");
+  }, [interactionMode]);
 
   const focusConceptInGraph = useCallback((conceptId: string) => {
     const cy = atlasCyRef.current;
@@ -1172,6 +1216,7 @@ export default function App() {
   }, []);
 
   async function refreshGraph() {
+    invalidateGraphCache();
     setGraphError(null);
     try {
       const g = await getGraph();
@@ -1251,13 +1296,6 @@ export default function App() {
       cancelled = true;
     };
   }, [selectedConceptId]);
-
-  const filteredNodes = useMemo(() => {
-    const nodes: ConceptSummary[] = graph?.nodes ?? [];
-    const q = query.trim().toLowerCase();
-    if (!q) return nodes;
-    return nodes.filter((n) => n.title.toLowerCase().includes(q));
-  }, [graph, query]);
 
   useEffect(() => {
     const q = query.trim();
@@ -1775,16 +1813,13 @@ export default function App() {
               ) : !graph ? (
                 <SkeletonBlock lines={6} />
               ) : (
-                <ul className="nodeList" aria-label="Concepts">
-                  {filteredNodes.map((n) => (
-                    <ConceptListItem
-                      key={n.id}
-                      node={n}
-                      selected={selectedConceptId === n.id}
-                      onSelect={selectAndFocusConcept}
-                    />
-                  ))}
-                </ul>
+                <ConceptTree
+                  nodes={graph.nodes}
+                  edges={graph.edges}
+                  query={query}
+                  selectedConceptId={selectedConceptId}
+                  onSelect={selectAndFocusConcept}
+                />
               )}
             </div>
 
@@ -1976,7 +2011,7 @@ export default function App() {
                 ) : null}
               </div>
 
-              <div className="atlasWrap">
+              <div className={`atlasWrap${interactionMode === "pan" ? " atlasWrap--panMode" : ""}`}>
                   <AtlasView
                     graph={graph}
                     clusteredData={clusteredData}
@@ -1996,6 +2031,11 @@ export default function App() {
                     onSelectEdge={selectEdge}
                     onCyReady={handleCyReady}
                   />
+                <GraphNavToolbar
+                  cy={atlasCyRef.current}
+                  interactionMode={interactionMode}
+                  onInteractionModeChange={setInteractionMode}
+                />
                 {viewMode === "lens" && lensData && (
                   <LensEditToolbar
                     onAddConcept={() => {
@@ -2003,7 +2043,10 @@ export default function App() {
                       setAddConceptOpen(true);
                     }}
                     edgeDraftState={edgeDraftState}
-                    onStartEdgeDraft={() => setEdgeDraftState({ phase: "pickSource" })}
+                    onStartEdgeDraft={() => {
+                      setInteractionMode("pointer");
+                      setEdgeDraftState({ phase: "pickSource" });
+                    }}
                     onCancelEdgeDraft={cancelEdgeDraft}
                     error={lensEditError}
                     saving={lensEditSaving}

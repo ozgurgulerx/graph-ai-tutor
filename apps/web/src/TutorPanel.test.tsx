@@ -46,7 +46,7 @@ describe("TutorPanel", () => {
       <TutorPanel
         graph={{
           nodes: [
-            { id: "concept_a", title: "A", kind: "Concept", module: null, masteryScore: 0 }
+            { id: "concept_a", title: "A", kind: "Concept", module: null, masteryScore: 0, pagerank: 0, community: null }
           ],
           edges: []
         }}

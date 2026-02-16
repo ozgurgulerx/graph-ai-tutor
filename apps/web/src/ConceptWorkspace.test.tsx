@@ -67,6 +67,7 @@ function makeConcept(overrides: Partial<Concept> = {}): Concept {
     l2: [],
     module: null,
     noteSourceId: null,
+    context: null,
     masteryScore: 0,
     createdAt: 0,
     updatedAt: 0,

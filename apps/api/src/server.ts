@@ -86,7 +86,11 @@ import {
   GetConceptBacklinksResponseSchema,
   PostGenerateConceptContextResponseSchema,
   PostUpdateConceptContextRequestSchema,
-  PostUpdateConceptContextResponseSchema
+  PostUpdateConceptContextResponseSchema,
+  ShortestPathQuerySchema,
+  ShortestPathResponseSchema,
+  computePageRank,
+  detectCommunities
 } from "@graph-ai-tutor/shared";
 
 import { createOpenAiCaptureLlm, runCaptureJob, type CaptureLlm } from "./capture";
@@ -112,6 +116,7 @@ import {
   parseAllowlistDomains,
   sha256Hex
 } from "./crawler";
+import { GraphCache } from "./graph-cache";
 import { isVaultUrl, readVaultTextFile, resolveVaultUrlToPath, writeVaultTextFileAtomic } from "./vault";
 
 type SafeParseResult<T> =
@@ -205,7 +210,8 @@ export type ServerDeps = {
 function registerApiRoutes(
   app: FastifyInstance,
   deps: ServerDeps,
-  crawlerAllowlistDomains: string[]
+  crawlerAllowlistDomains: string[],
+  graphCache: GraphCache
 ) {
   app.post("/crawl", async (req, reply) => {
     if (crawlerAllowlistDomains.length === 0) {
@@ -362,6 +368,20 @@ function registerApiRoutes(
   });
 
   app.get("/graph", async (req, reply) => {
+    // ETag-based caching: return 304 if graph hasn't changed
+    const graphVersion = await deps.repos.getGraphVersion();
+    const etag = `"graph-${graphVersion}"`;
+    reply.header("ETag", etag);
+    if (req.headers["if-none-match"] === etag) {
+      reply.status(304).send();
+      return;
+    }
+
+    // Server-side cache
+    const cacheKey = `graph:${req.url}`;
+    const cached = graphCache.get(cacheKey);
+    if (cached) return cached;
+
     const query = parseOr400(reply, GraphQuerySchema, req.query ?? {});
     if (!query) return;
 
@@ -377,6 +397,7 @@ function registerApiRoutes(
       const payload = { nodes, edges };
       const validated = parseOr400(reply, GraphResponseSchema, payload);
       if (!validated) return;
+      graphCache.set(cacheKey, validated);
       return validated;
     }
 
@@ -387,27 +408,25 @@ function registerApiRoutes(
     }
 
     const depth = query.depth;
-    const seen = new Set<string>([centerId]);
-    let frontier = new Set<string>([centerId]);
 
-    for (let i = 0; i < depth; i++) {
-      if (frontier.size === 0) break;
-      const edges = await deps.repos.edge.listSummariesByConceptIds(Array.from(frontier), 10_000);
-
-      const next = new Set<string>();
-      for (const edge of edges) {
-        if (!allowEdgeType(edge.type)) continue;
-
-        const from = edge.fromConceptId;
-        const to = edge.toConceptId;
-
-        if (!seen.has(from)) next.add(from);
-        if (!seen.has(to)) next.add(to);
-        seen.add(from);
-        seen.add(to);
+    // Try CTE-based BFS first (single round-trip), fall back to iterative
+    let seen = await deps.repos.edge.listNeighborhoodCTE(centerId, depth);
+    if (!seen) {
+      seen = new Set<string>([centerId]);
+      let frontier = new Set<string>([centerId]);
+      for (let i = 0; i < depth; i++) {
+        if (frontier.size === 0) break;
+        const frontierEdges = await deps.repos.edge.listSummariesByConceptIds(Array.from(frontier), 10_000);
+        const next = new Set<string>();
+        for (const edge of frontierEdges) {
+          if (!allowEdgeType(edge.type)) continue;
+          if (!seen.has(edge.fromConceptId)) next.add(edge.fromConceptId);
+          if (!seen.has(edge.toConceptId)) next.add(edge.toConceptId);
+          seen.add(edge.fromConceptId);
+          seen.add(edge.toConceptId);
+        }
+        frontier = next;
       }
-
-      frontier = next;
     }
 
     const ids = Array.from(seen);
@@ -420,10 +439,20 @@ function registerApiRoutes(
     const payload = { nodes, edges };
     const validated = parseOr400(reply, GraphResponseSchema, payload);
     if (!validated) return;
+    graphCache.set(cacheKey, validated);
     return validated;
   });
 
   app.get("/graph/lens", async (req, reply) => {
+    // ETag-based caching
+    const graphVersion = await deps.repos.getGraphVersion();
+    const etag = `"lens-${graphVersion}"`;
+    reply.header("ETag", etag);
+    if (req.headers["if-none-match"] === etag) {
+      reply.status(304).send();
+      return;
+    }
+
     const query = parseOr400(reply, GraphLensQuerySchema, req.query ?? {});
     if (!query) return;
 
@@ -434,26 +463,29 @@ function registerApiRoutes(
     }
 
     // Phase 1: Discover nodes via undirected BFS through PREREQUISITE_OF edges
-    const seen = new Set<string>([centerId]);
-    let frontier = new Set<string>([centerId]);
-
-    for (let i = 0; i < query.radius; i++) {
-      if (frontier.size === 0) break;
-      const frontierEdges = await deps.repos.edge.listSummariesByConceptIds(
-        Array.from(frontier),
-        10_000
-      );
-      const next = new Set<string>();
-      for (const edge of frontierEdges) {
-        if (edge.type !== "PREREQUISITE_OF") continue;
-        for (const endpoint of [edge.fromConceptId, edge.toConceptId]) {
-          if (!seen.has(endpoint)) {
-            seen.add(endpoint);
-            next.add(endpoint);
+    // Try CTE-based BFS first (single round-trip), fall back to iterative
+    let seen = await deps.repos.edge.listNeighborhoodCTE(centerId, query.radius, "PREREQUISITE_OF");
+    if (!seen) {
+      seen = new Set<string>([centerId]);
+      let frontier = new Set<string>([centerId]);
+      for (let i = 0; i < query.radius; i++) {
+        if (frontier.size === 0) break;
+        const frontierEdges = await deps.repos.edge.listSummariesByConceptIds(
+          Array.from(frontier),
+          10_000
+        );
+        const next = new Set<string>();
+        for (const edge of frontierEdges) {
+          if (edge.type !== "PREREQUISITE_OF") continue;
+          for (const endpoint of [edge.fromConceptId, edge.toConceptId]) {
+            if (!seen.has(endpoint)) {
+              seen.add(endpoint);
+              next.add(endpoint);
+            }
           }
         }
+        frontier = next;
       }
-      frontier = next;
     }
 
     // Phase 2: Fetch all edges between discovered nodes (including secondary types)
@@ -491,13 +523,37 @@ function registerApiRoutes(
     const groups = await deps.repos.concept.listSummariesGroupedByModule();
     const allEdges = await deps.repos.edge.listSummaries();
 
-    const clusters = groups
+    let clusters = groups
       .filter((g) => g.module !== "(uncategorized)")
       .map((g) => ({
         module: g.module,
         count: g.count,
         conceptIds: g.conceptIds
       }));
+
+    // If module-based clusters are sparse, use computed community labels
+    const totalNodes = groups.reduce((sum, g) => sum + g.count, 0);
+    const clusteredNodeCount = clusters.reduce((sum, c) => sum + c.count, 0);
+    if (totalNodes > 0 && clusteredNodeCount / totalNodes < 0.5) {
+      const allSummaries = await deps.repos.concept.listSummaries();
+      const communityGroups = new Map<string, string[]>();
+      for (const s of allSummaries) {
+        if (!s.community) continue;
+        const arr = communityGroups.get(s.community) ?? [];
+        arr.push(s.id);
+        communityGroups.set(s.community, arr);
+      }
+      if (communityGroups.size > 0) {
+        let idx = 0;
+        clusters = Array.from(communityGroups.entries())
+          .filter(([, ids]) => ids.length > 1)
+          .map(([, ids]) => ({
+            module: `Community ${++idx}`,
+            count: ids.length,
+            conceptIds: ids
+          }));
+      }
+    }
 
     const clusteredConceptIds = new Set<string>();
     for (const c of clusters) {
@@ -517,13 +573,66 @@ function registerApiRoutes(
 
     const unclusteredGroup = groups.find((g) => g.module === "(uncategorized)");
     const unclustered = unclusteredGroup
-      ? await deps.repos.concept.listSummariesByIds(unclusteredGroup.conceptIds)
+      ? await deps.repos.concept.listSummariesByIds(
+          unclusteredGroup.conceptIds.filter((id) => !clusteredConceptIds.has(id))
+        )
       : [];
 
     const payload = { clusters, interClusterEdges, unclustered };
     const validated = parseOr400(reply, GraphClusteredResponseSchema, payload);
     if (!validated) return;
     return validated;
+  });
+
+  app.get("/graph/shortest-path", async (req, reply) => {
+    const query = parseOr400(reply, ShortestPathQuerySchema, req.query ?? {});
+    if (!query) return;
+
+    const fromId = await resolveConceptId(deps.repos, query.from);
+    if (!fromId) {
+      sendError(reply, 404, "NOT_FOUND", "Source concept not found", { id: query.from });
+      return;
+    }
+
+    const toId = await resolveConceptId(deps.repos, query.to);
+    if (!toId) {
+      sendError(reply, 404, "NOT_FOUND", "Target concept not found", { id: query.to });
+      return;
+    }
+
+    const path = await deps.repos.edge.findShortestPath(fromId, toId, query.maxDepth);
+    const nodes = path ? await deps.repos.concept.listSummariesByIds(path) : [];
+    const validated = parseOr400(reply, ShortestPathResponseSchema, { path, nodes });
+    if (!validated) return;
+    return validated;
+  });
+
+  app.post("/graph/recompute-pagerank", async () => {
+    const allNodes = await deps.repos.concept.listSummaries();
+    const allEdges = await deps.repos.edge.listSummaries();
+    const nodeIds = allNodes.map((n) => n.id);
+    const edges = allEdges.map((e) => ({
+      fromConceptId: e.fromConceptId,
+      toConceptId: e.toConceptId
+    }));
+    const ranks = computePageRank(nodeIds, edges);
+    await deps.repos.concept.updatePageRanks(ranks);
+    graphCache.invalidate();
+    return { updated: ranks.size };
+  });
+
+  app.post("/graph/recompute-communities", async () => {
+    const allNodes = await deps.repos.concept.listSummaries();
+    const allEdges = await deps.repos.edge.listSummaries();
+    const nodeIds = allNodes.map((n) => n.id);
+    const edges = allEdges.map((e) => ({
+      fromConceptId: e.fromConceptId,
+      toConceptId: e.toConceptId
+    }));
+    const communities = detectCommunities(nodeIds, edges);
+    await deps.repos.concept.updateCommunities(communities);
+    graphCache.invalidate();
+    return { updated: communities.size };
   });
 
   app.get("/concept/:id", async (req, reply) => {
@@ -1279,12 +1388,14 @@ function registerApiRoutes(
         return;
       }
 
+      graphCache.invalidate();
       const validated = parseOr400(reply, PostConceptResponseSchema, { concept: updated });
       if (!validated) return;
       return validated;
     }
 
     const created = await deps.repos.concept.create(body);
+    graphCache.invalidate();
     const validated = parseOr400(reply, PostConceptResponseSchema, { concept: created });
     if (!validated) return;
     return validated;
@@ -1507,6 +1618,7 @@ function registerApiRoutes(
         fromConceptId: fromId,
         toConceptId: toId
       });
+      graphCache.invalidate();
       const validated = parseOr400(reply, PostEdgeResponseSchema, { edge });
       if (!validated) return;
       return validated;
@@ -1664,6 +1776,7 @@ function registerApiRoutes(
         canonicalId,
         duplicateIds: body.duplicateIds
       });
+      graphCache.invalidate();
       const validated = parseOr400(reply, PostConceptMergeApplyResponseSchema, { merge });
       if (!validated) return;
       return validated;
@@ -1862,6 +1975,7 @@ function registerApiRoutes(
       }
 
       const res = await deps.repos.changeset.applyAccepted(params.id, filePatchOptions);
+      graphCache.invalidate();
       const validated = parseOr400(reply, PostApplyChangesetResponseSchema, {
         changeset: res.changeset,
         applied: {
@@ -2375,6 +2489,7 @@ function registerApiRoutes(
 export function buildServer(deps: ServerDeps) {
   const app = Fastify({ logger: true });
   const crawlerAllowlistDomains = parseAllowlistDomains(process.env.CRAWLER_ALLOWLIST_DOMAINS);
+  const graphCache = new GraphCache();
 
   app.get("/health", async () => ({ ok: true }));
 
@@ -2414,12 +2529,12 @@ export function buildServer(deps: ServerDeps) {
   }
 
   // Legacy (no prefix) for backwards compatibility.
-  registerApiRoutes(app, deps, crawlerAllowlistDomains);
+  registerApiRoutes(app, deps, crawlerAllowlistDomains, graphCache);
 
   // Deployment path: mount routes under `/api/*`.
   app.register(
     async (api) => {
-      registerApiRoutes(api, deps, crawlerAllowlistDomains);
+      registerApiRoutes(api, deps, crawlerAllowlistDomains, graphCache);
     },
     { prefix: "/api" }
   );

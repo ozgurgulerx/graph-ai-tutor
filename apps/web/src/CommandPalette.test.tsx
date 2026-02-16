@@ -10,7 +10,9 @@ const makeConcept = (id: string, title: string, kind = "Concept", module: string
   title,
   kind: kind as ConceptSummary["kind"],
   module,
-  masteryScore: 0
+  masteryScore: 0,
+  pagerank: 0,
+  community: null
 });
 
 const sampleConcepts: ConceptSummary[] = [

@@ -162,17 +162,48 @@ async function requestJson<T>(
   return schema.parse(body);
 }
 
+// ETag-based cache for graph endpoints
+const etagCache = new Map<string, { etag: string; data: unknown }>();
+
+async function requestJsonWithEtag<T>(
+  schema: { parse: (input: unknown) => T },
+  path: string
+): Promise<T> {
+  const cached = etagCache.get(path);
+  const headers: Record<string, string> = { accept: "application/json" };
+  if (cached) headers["If-None-Match"] = cached.etag;
+
+  const res = await fetch(`${API_BASE}${path}`, { headers });
+
+  if (res.status === 304 && cached) {
+    return cached.data as T;
+  }
+  if (!res.ok) return throwApiError(res);
+
+  const body = await parseJson(res);
+  const parsed = schema.parse(body);
+  const etag = res.headers.get("etag");
+  if (etag) etagCache.set(path, { etag, data: parsed });
+  return parsed;
+}
+
+export function invalidateGraphCache(): void {
+  for (const key of etagCache.keys()) {
+    if (key.startsWith("/graph")) etagCache.delete(key);
+  }
+}
+
 export function getGraph(): Promise<GraphResponse> {
-  return requestJson(GraphResponseSchema, "/graph");
+  return requestJsonWithEtag(GraphResponseSchema, "/graph");
 }
 
 export function getGraphLocal(center: string, depth = 2): Promise<GraphResponse> {
   const qs = `center=${encodeURIComponent(center)}&depth=${depth}`;
-  return requestJson(GraphResponseSchema, `/graph?${qs}`);
+  return requestJsonWithEtag(GraphResponseSchema, `/graph?${qs}`);
 }
 
 export function getGraphClustered(): Promise<GraphClusteredResponse> {
-  return requestJson(GraphClusteredResponseSchema, "/graph/clustered");
+  return requestJsonWithEtag(GraphClusteredResponseSchema, "/graph/clustered");
 }
 
 export function getGraphLens(
@@ -184,7 +215,7 @@ export function getGraphLens(
   params.set("center", center);
   params.set("radius", String(radius));
   if (edgeTypes.length > 0) params.set("edgeTypes", edgeTypes.join(","));
-  return requestJson(GraphLensResponseSchema, `/graph/lens?${params.toString()}`);
+  return requestJsonWithEtag(GraphLensResponseSchema, `/graph/lens?${params.toString()}`);
 }
 
 export function getUniversalSearch(q: string, limit?: number): Promise<SearchUniversalResponse> {

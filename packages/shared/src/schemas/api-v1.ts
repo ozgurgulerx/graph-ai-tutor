@@ -86,7 +86,9 @@ export const ConceptSummarySchema = z.object({
   title: z.string(),
   kind: NodeKindSchema.optional().default("Concept"),
   module: z.string().nullable(),
-  masteryScore: z.number().optional().default(0)
+  masteryScore: z.number().optional().default(0),
+  pagerank: z.number().optional().default(0),
+  community: z.string().nullable().optional().default(null)
 });
 
 export type ConceptSummary = z.infer<typeof ConceptSummarySchema>;
@@ -227,6 +229,23 @@ export const GraphLensResponseSchema = z.object({
   warnings: z.array(z.string())
 });
 export type GraphLensResponse = z.infer<typeof GraphLensResponseSchema>;
+
+// --- Shortest Path ---
+
+export const ShortestPathQuerySchema = z
+  .object({
+    from: z.string().min(1),
+    to: z.string().min(1),
+    maxDepth: z.coerce.number().int().min(1).max(10).optional().default(10)
+  })
+  .strict();
+export type ShortestPathQuery = z.infer<typeof ShortestPathQuerySchema>;
+
+export const ShortestPathResponseSchema = z.object({
+  path: z.array(z.string()).nullable(),
+  nodes: z.array(ConceptSummarySchema)
+});
+export type ShortestPathResponse = z.infer<typeof ShortestPathResponseSchema>;
 
 export const GetConceptParamsSchema = z.object({
   id: z.string()
