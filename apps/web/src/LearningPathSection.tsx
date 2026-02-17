@@ -17,6 +17,8 @@ export function LearningPathSection(props: {
   graph: GraphResponse;
   conceptId: string;
   onOpenConcept: (conceptId: string) => void;
+  onOpenPathConcept?: (conceptId: string) => void;
+  highlightedUpstreamConceptId?: string | null;
 }) {
   const nodeById = useMemo(() => {
     const map = new Map<string, GraphResponse["nodes"][number]>();
@@ -54,6 +56,33 @@ export function LearningPathSection(props: {
     return all;
   }, [props.conceptId, props.graph.edges, nodeById]);
 
+  const upstreamConcept = useMemo(() => {
+    const id = props.highlightedUpstreamConceptId?.trim();
+    if (!id) return null;
+    return {
+      id,
+      title: nodeById.get(id)?.title ?? id
+    };
+  }, [props.highlightedUpstreamConceptId, nodeById]);
+
+  const upstreamNeighbors = useMemo(() => {
+    const sourceId = upstreamConcept?.id;
+    if (!sourceId) return [];
+    const ids = new Set<string>();
+    for (const edge of props.graph.edges) {
+      if (edge.fromConceptId === sourceId) {
+        ids.add(edge.toConceptId);
+      } else if (edge.toConceptId === sourceId) {
+        ids.add(edge.fromConceptId);
+      }
+    }
+    return [...ids]
+      .map((id) => ({ id, title: nodeById.get(id)?.title ?? id }))
+      .sort((a, b) => a.title.localeCompare(b.title));
+  }, [props.graph.edges, upstreamConcept?.id, nodeById]);
+
+  const openPathConcept = props.onOpenPathConcept ?? props.onOpenConcept;
+
   return (
     <div className="conceptSection" aria-label="Learning path" data-testid="learning-path">
       <div className="sectionTitle">Path</div>
@@ -66,11 +95,7 @@ export function LearningPathSection(props: {
           <ol className="bullets" aria-label="Prerequisites">
             {prereqs.orderedConceptIds.slice(0, -1).map((id) => (
               <li key={id}>
-                <button
-                  type="button"
-                  className="linkButton"
-                  onClick={() => props.onOpenConcept(id)}
-                >
+                <button type="button" className="linkButton" onClick={() => openPathConcept(id)}>
                   {nodeById.get(id)?.title ?? id}
                 </button>
               </li>
@@ -102,7 +127,7 @@ export function LearningPathSection(props: {
               <button
                 type="button"
                 className="linkButton"
-                onClick={() => props.onOpenConcept(d.id)}
+                onClick={() => openPathConcept(d.id)}
               >
                 {d.title}
               </button>{" "}
@@ -111,7 +136,30 @@ export function LearningPathSection(props: {
           ))}
         </ul>
       )}
+
+      {upstreamConcept ? (
+        <div className="conceptSection" aria-label="Upstream focus">
+          <div className="sectionTitle">Upstream focus (+1 neighbors)</div>
+          <p className="mutedText">Upstream node: {upstreamConcept.title}</p>
+          {upstreamNeighbors.length === 0 ? (
+            <p className="mutedText">(No immediate neighbors)</p>
+          ) : (
+            <ul className="bullets" aria-label="Upstream neighbors">
+              {upstreamNeighbors.map((n) => (
+                <li key={n.id}>
+                  <button
+                    type="button"
+                    className="linkButton"
+                    onClick={() => openPathConcept(n.id)}
+                  >
+                    {n.title}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      ) : null}
     </div>
   );
 }
-

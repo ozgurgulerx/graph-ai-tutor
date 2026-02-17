@@ -33,6 +33,7 @@ import {
   postDraftEdge
 } from "./api/client";
 import { CaptureModal } from "./CaptureModal";
+import { SmartAddModal } from "./SmartAddModal";
 import { ConceptInspectorV2 } from "./concept/ConceptInspectorV2";
 import { ConceptTree } from "./ConceptTree";
 import { ConceptWorkspace } from "./ConceptWorkspace";
@@ -97,6 +98,7 @@ type AtlasViewProps = {
   onExploreNavigate?: (conceptId: string) => void;
   onPinToggle?: (conceptId: string) => void;
   onCyReady?: (cy: cytoscape.Core | null) => void;
+  upstreamPathFocusConceptId: string | null;
 };
 
 function isEditableTarget(target: EventTarget | null): boolean {
@@ -169,6 +171,10 @@ function applyEdgeFilter(
   edgeVisMode: EdgeVisMode = "filtered"
 ) {
   cy.edges().forEach((edge) => {
+    if (edge.hasClass("upstreamPathEdge")) {
+      edge.style("display", "element");
+      return;
+    }
     const type = edge.data("type") as EdgeType;
     let visible: boolean;
     if (edgeVisMode === "all") {
@@ -441,6 +447,8 @@ const EXPLORE_CLASSES = [
   "exploreCenter", "exploreL1", "exploreL2",
   "exploreHidden", "exploreBackbone", "exploreSecondary"
 ] as const;
+const UPSTREAM_PATH_CLASSES = ["upstreamPathFocus", "upstreamPathNeighbor"] as const;
+const UPSTREAM_PATH_EDGE_CLASS = "upstreamPathEdge";
 
 function applyExploreMode(
   cy: cytoscape.Core,
@@ -487,6 +495,43 @@ function applyExploreMode(
     } else {
       edge.addClass("exploreSecondary");
     }
+  });
+}
+
+function applyUpstreamPathFocus(
+  cy: cytoscape.Core,
+  opts: {
+    enabled: boolean;
+    upstreamConceptId: string | null;
+  }
+) {
+  cy.nodes().removeClass(UPSTREAM_PATH_CLASSES.join(" "));
+  cy.edges().removeClass(UPSTREAM_PATH_EDGE_CLASS);
+  if (!opts.enabled || !opts.upstreamConceptId) return;
+
+  const node = cy.$id(opts.upstreamConceptId);
+  if (node.empty()) return;
+  if (node.isParent?.()) return;
+
+  node.removeClass("exploreHidden lensHidden viewportCulled");
+  node.addClass("upstreamPathFocus");
+
+  node.connectedEdges().forEach((edge) => {
+    const source = edge.data("source");
+    const target = edge.data("target");
+    if (typeof source !== "string" || typeof target !== "string") return;
+
+    edge.removeClass("exploreHidden lensHidden viewportCulled");
+    edge.addClass(UPSTREAM_PATH_EDGE_CLASS);
+
+    const neighborId = source === opts.upstreamConceptId ? target : target === opts.upstreamConceptId ? source : null;
+    if (!neighborId) return;
+
+    const neighbor = cy.$id(neighborId);
+    if (neighbor.empty() || neighbor.isParent?.()) return;
+
+    neighbor.removeClass("exploreHidden lensHidden viewportCulled");
+    neighbor.addClass("upstreamPathNeighbor");
   });
 }
 
@@ -657,7 +702,15 @@ function applySemanticZoom(
 
   // Far zoom: no labels
   if (zoom < ZOOM_FAR) {
-    cy.batch(() => { cy.nodes().addClass("labelHidden"); });
+    cy.batch(() => {
+      cy.nodes().forEach((node) => {
+        if (node.hasClass("upstreamPathFocus") || node.hasClass("upstreamPathNeighbor")) {
+          node.removeClass("labelHidden");
+          return;
+        }
+        node.addClass("labelHidden");
+      });
+    });
     return;
   }
 
@@ -668,7 +721,9 @@ function applySemanticZoom(
       const keep = node.data("isCluster") === true
         || id === opts.selectedConceptId
         || opts.pinnedConceptIds.has(id)
-        || opts.topKNodeIds.has(id);
+        || opts.topKNodeIds.has(id)
+        || node.hasClass("upstreamPathFocus")
+        || node.hasClass("upstreamPathNeighbor");
       if (keep) node.removeClass("labelHidden");
       else node.addClass("labelHidden");
     });
@@ -699,7 +754,8 @@ function AtlasView({
   onSelectEdge,
   onExploreNavigate,
   onPinToggle,
-  onCyReady
+  onCyReady,
+  upstreamPathFocusConceptId
 }: AtlasViewProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const cyRef = useRef<cytoscape.Core | null>(null);
@@ -791,6 +847,11 @@ function AtlasView({
   useEffect(() => {
     selectedConceptIdRef.current = selectedConceptId;
   }, [selectedConceptId]);
+
+  const upstreamPathFocusConceptIdRef = useRef(upstreamPathFocusConceptId);
+  useEffect(() => {
+    upstreamPathFocusConceptIdRef.current = upstreamPathFocusConceptId;
+  }, [upstreamPathFocusConceptId]);
 
   const topKRef = useRef<Set<string>>(new Set());
 
@@ -900,6 +961,25 @@ function AtlasView({
           }
         },
         {
+          selector: "node.upstreamPathFocus",
+          style: {
+            "background-color": "#7c3aed",
+            "border-width": 6,
+            "border-color": "#6d28d9",
+            "font-weight": "bold" as cytoscape.Css.FontWeight,
+            width: 48,
+            height: 48
+          }
+        },
+        {
+          selector: "node.upstreamPathNeighbor",
+          style: {
+            "background-color": "#0ea5e9",
+            "border-width": 3,
+            "border-color": "#0369a1"
+          }
+        },
+        {
           selector: "node.edgeDraftSource",
           style: {
             "border-width": 4,
@@ -939,6 +1019,16 @@ function AtlasView({
             width: 4,
             "line-color": "#f97316",
             "target-arrow-color": "#f97316",
+            opacity: 1
+          }
+        },
+        {
+          selector: "edge.upstreamPathEdge",
+          style: {
+            display: "element",
+            width: 4,
+            "line-color": "#0ea5e9",
+            "target-arrow-color": "#0ea5e9",
             opacity: 1
           }
         },
@@ -1221,6 +1311,10 @@ function AtlasView({
         hoveredRelationEdgeRef.current
       );
       applyPinnedNodes(cy, pinnedRef.current);
+      applyUpstreamPathFocus(cy, {
+        enabled: Boolean(upstreamPathFocusConceptIdRef.current),
+        upstreamConceptId: upstreamPathFocusConceptIdRef.current
+      });
 
       // Compute top-K by degree for semantic zoom
       const leafNodes = cy.nodes().filter((n: cytoscape.NodeSingular) => !n.isParent());
@@ -1292,6 +1386,10 @@ function AtlasView({
     const cy = cyRef.current;
     if (!cy) return;
     applyEdgeFilter(cy, edgeTypeAllowlist, edgeVisMode);
+    applyUpstreamPathFocus(cy, {
+      enabled: Boolean(upstreamPathFocusConceptIdRef.current),
+      upstreamConceptId: upstreamPathFocusConceptIdRef.current
+    });
   }, [edgeTypeAllowlist, edgeVisMode]);
 
   useEffect(() => {
@@ -1317,6 +1415,26 @@ function AtlasView({
     if (!cy) return;
     applyPinnedNodes(cy, pinnedConceptIds);
   }, [pinnedConceptIds]);
+
+  useEffect(() => {
+    const cy = cyRef.current;
+    if (!cy) return;
+    applyUpstreamPathFocus(cy, {
+      enabled: Boolean(upstreamPathFocusConceptId),
+      upstreamConceptId: upstreamPathFocusConceptId
+    });
+  }, [
+    upstreamPathFocusConceptId,
+    elements,
+    graphMode,
+    viewMode,
+    lensData,
+    exploreCenter,
+    onDemandData,
+    onDemandHops,
+    edgeTypeAllowlist,
+    edgeVisMode
+  ]);
 
   useEffect(() => {
     const cy = cyRef.current;
@@ -1352,6 +1470,10 @@ function AtlasView({
       }
       applyLensMode(cy, { enabled: true, data: lensData });
       cy.animate({ fit: { eles: cy.nodes().not(".lensHidden"), padding: 60 }, duration: 400 });
+      applyUpstreamPathFocus(cy, {
+        enabled: Boolean(upstreamPathFocusConceptId),
+        upstreamConceptId: upstreamPathFocusConceptId
+      });
     } else {
       // Clear lens mode
       applyLensMode(cy, { enabled: false, data: null });
@@ -1365,9 +1487,13 @@ function AtlasView({
         }
         preLensPositionsRef.current = null;
         cy.animate({ fit: { eles: cy.elements(), padding: 50 }, duration: 400 });
+        applyUpstreamPathFocus(cy, {
+          enabled: Boolean(upstreamPathFocusConceptId),
+          upstreamConceptId: upstreamPathFocusConceptId
+        });
       }
     }
-  }, [viewMode, lensData]);
+  }, [viewMode, lensData, upstreamPathFocusConceptId]);
 
   // Full-graph explore mode (skip for on-demand)
   useEffect(() => {
@@ -1402,6 +1528,10 @@ function AtlasView({
         l2: neighborhood.l2,
         animate: true
       });
+      applyUpstreamPathFocus(cy, {
+        enabled: Boolean(upstreamPathFocusConceptId),
+        upstreamConceptId: upstreamPathFocusConceptId
+      });
     } else {
       // Clear explore mode
       applyExploreMode(cy, { enabled: false, center: "", l1: new Set(), l2: new Set() });
@@ -1415,9 +1545,20 @@ function AtlasView({
         }
         preExplorePositionsRef.current = null;
         cy.animate({ fit: { eles: cy.elements(), padding: 50 }, duration: 400 });
+        applyUpstreamPathFocus(cy, {
+          enabled: Boolean(upstreamPathFocusConceptId),
+          upstreamConceptId: upstreamPathFocusConceptId
+        });
       }
     }
-  }, [viewMode, exploreCenter, graph, edgeTypeAllowlist, graphMode]);
+  }, [
+    viewMode,
+    exploreCenter,
+    graph,
+    edgeTypeAllowlist,
+    graphMode,
+    upstreamPathFocusConceptId
+  ]);
 
   // On-demand explore: replace elements when data arrives
   useEffect(() => {
@@ -1431,7 +1572,19 @@ function AtlasView({
     const elems = buildOnDemandElements(onDemandData, onDemandHops, exploreCenter, pinnedConceptIds);
     cy.add(elems);
     runOnDemandLayout(cy, exploreCenter, onDemandHops);
-  }, [viewMode, graphMode, onDemandData, exploreCenter, onDemandHops, pinnedConceptIds]);
+    applyUpstreamPathFocus(cy, {
+      enabled: Boolean(upstreamPathFocusConceptId),
+      upstreamConceptId: upstreamPathFocusConceptId
+    });
+  }, [
+    viewMode,
+    graphMode,
+    onDemandData,
+    exploreCenter,
+    onDemandHops,
+    pinnedConceptIds,
+    upstreamPathFocusConceptId
+  ]);
 
   useEffect(() => {
     const cy = cyRef.current;
@@ -1554,6 +1707,7 @@ export default function App() {
   const [selectedConceptId, setSelectedConceptId] = useState<string | null>(() => {
     return new URLSearchParams(window.location.search).get("conceptId");
   });
+  const [upstreamPathFocusConceptId, setUpstreamPathFocusConceptId] = useState<string | null>(null);
 
   const [selectedSourceId, setSelectedSourceId] = useState<string | null>(null);
   const [sourcesRefreshToken, setSourcesRefreshToken] = useState(0);
@@ -1578,6 +1732,7 @@ export default function App() {
   const [tutorSeedQuestionToken, setTutorSeedQuestionToken] = useState(0);
 
   const [captureOpen, setCaptureOpen] = useState(false);
+  const [smartAddOpen, setSmartAddOpen] = useState(false);
 
   const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
   const [trainingPanelOpen, setTrainingPanelOpen] = useState(false);
@@ -1717,6 +1872,16 @@ export default function App() {
     }
   }
 
+  function selectAndFocusConceptFromPath(id: string) {
+    setUpstreamPathFocusConceptId(id);
+    if (viewMode === "explore") {
+      handleExploreNavigate(id, "programmatic", true);
+    } else {
+      selectConcept(id, "programmatic", true);
+      focusConceptInGraph(id);
+    }
+  }
+
   function navigateToConceptInGraph(id: string, source: SelectionSource = "search_show_in_graph") {
     if (graphMode === "onDemand") {
       if (viewMode !== "explore") {
@@ -1778,6 +1943,7 @@ export default function App() {
       ? `${window.location.pathname}?${params.toString()}`
       : window.location.pathname;
     window.history.pushState({}, "", nextUrl);
+    setUpstreamPathFocusConceptId(null);
     setSelectedConceptId(null);
     setSelectedEdgeId(null);
     setSelectedSourceId(null);
@@ -1807,6 +1973,10 @@ export default function App() {
       setTutorDrawerOpen(false);
       return true;
     }
+    if (smartAddOpen) {
+      setSmartAddOpen(false);
+      return true;
+    }
     if (captureOpen) {
       setCaptureOpen(false);
       return true;
@@ -1822,6 +1992,7 @@ export default function App() {
     return false;
   }, [
     addConceptOpen,
+    smartAddOpen,
     shortcutsHelpOpen,
     captureOpen,
     commandPaletteOpen,
@@ -1962,6 +2133,11 @@ export default function App() {
         }
       },
       {
+        id: "smart-add-concept",
+        label: "Smart Add Concept",
+        onSelect: () => setSmartAddOpen(true)
+      },
+      {
         id: "show-shortcuts",
         label: "Show shortcuts",
         onSelect: () => {
@@ -2049,6 +2225,7 @@ export default function App() {
   useEffect(() => {
     const onPopState = () => {
       setSelectedConceptId(new URLSearchParams(window.location.search).get("conceptId"));
+      setUpstreamPathFocusConceptId(null);
     };
     window.addEventListener("popstate", onPopState);
     return () => window.removeEventListener("popstate", onPopState);
@@ -2165,7 +2342,11 @@ export default function App() {
     });
   }
 
-  function selectConcept(id: string, source: SelectionSource = "programmatic") {
+  function selectConcept(
+    id: string,
+    source: SelectionSource = "programmatic",
+    keepUpstreamFocus = false
+  ) {
     const params = new URLSearchParams(window.location.search);
     params.set("conceptId", id);
     window.history.pushState({}, "", `${window.location.pathname}?${params.toString()}`);
@@ -2175,6 +2356,7 @@ export default function App() {
     setHoveredRelationConceptId(null);
     setHoveredRelationEdgeId(null);
     setActiveRightTab("concept");
+    if (!keepUpstreamFocus) setUpstreamPathFocusConceptId(null);
 
     if (autoLensGateEnabled && !userOverrodeAutoView && source !== "programmatic" && graphMode !== "onDemand") {
       setViewMode("lens");
@@ -2240,13 +2422,17 @@ export default function App() {
     setViewMode(nextMode);
   }
 
-  function handleExploreNavigate(targetId: string) {
+  function handleExploreNavigate(
+    targetId: string,
+    source: SelectionSource = "programmatic",
+    keepUpstreamFocus = false
+  ) {
     if (exploreCenter) {
       setExploreHistory((prev) => [...prev, exploreCenter]);
     }
     setExploreFuture([]);
     setExploreCenter(targetId);
-    selectConcept(targetId, "programmatic");
+    selectConcept(targetId, source, keepUpstreamFocus);
     if (graphMode === "onDemand") {
       fetchNeighborhood(targetId);
     }
@@ -2498,6 +2684,14 @@ export default function App() {
           </button>
           <button
             type="button"
+            className="primaryButton"
+            onClick={() => setSmartAddOpen(true)}
+            data-testid="smart-add-open"
+          >
+            + Add
+          </button>
+          <button
+            type="button"
             className="secondaryButton"
             onClick={() => setCaptureOpen(true)}
             data-testid="capture-open"
@@ -2506,6 +2700,17 @@ export default function App() {
           </button>
         </div>
       </header>
+
+      {smartAddOpen ? (
+        <SmartAddModal
+          onCreated={(conceptId) => {
+            setSmartAddOpen(false);
+            void refreshGraph();
+            selectConcept(conceptId, "programmatic");
+          }}
+          onClose={() => setSmartAddOpen(false)}
+        />
+      ) : null}
 
       {captureOpen ? (
         <CaptureModal
@@ -3107,6 +3312,7 @@ export default function App() {
                     onExploreNavigate={handleExploreNavigate}
                     onPinToggle={handlePinToggle}
                     onCyReady={handleCyReady}
+                    upstreamPathFocusConceptId={upstreamPathFocusConceptId}
                   />
                 <GraphNavToolbar
                   cy={atlasCyRef.current}
@@ -3278,6 +3484,8 @@ export default function App() {
                   concept={concept}
                   graph={graph}
                   onOpenConcept={selectAndFocusConcept}
+                  onOpenUpstreamPathConcept={selectAndFocusConceptFromPath}
+                  upstreamFocusConceptId={upstreamPathFocusConceptId}
                   onShowContextPack={showContextPack}
                   onGraphUpdated={refreshGraph}
                   onOpenSource={openSource}
@@ -3326,6 +3534,8 @@ export default function App() {
                   concept={concept}
                   graph={graph}
                   onOpenConcept={selectAndFocusConcept}
+                  onOpenUpstreamPathConcept={selectAndFocusConceptFromPath}
+                  upstreamFocusConceptId={upstreamPathFocusConceptId}
                   onShowContextPack={showContextPack}
                   onGraphUpdated={refreshGraph}
                   onOpenSource={openSource}

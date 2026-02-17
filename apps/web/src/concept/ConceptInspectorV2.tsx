@@ -29,6 +29,8 @@ type ConceptInspectorV2Props = Pick<
   | "onConceptUpdated"
   | "graph"
   | "onOpenConcept"
+  | "onOpenUpstreamPathConcept"
+  | "upstreamFocusConceptId"
   | "onOpenSource"
   | "onShowContextPack"
   | "sourcesRefreshToken"

@@ -55,6 +55,8 @@ export type ConceptWorkspaceProps = {
   onConceptUpdated: (concept: Concept) => void;
   graph?: GraphResponse | null;
   onOpenConcept?: (conceptId: string) => void;
+  onOpenUpstreamPathConcept?: (conceptId: string) => void;
+  upstreamFocusConceptId?: string | null;
   onOpenSource?: (sourceId: string) => void;
   onShowContextPack?: (markdown: string, fileName: string) => void;
   sourcesRefreshToken?: number;
@@ -116,6 +118,8 @@ export function ConceptWorkspace(props: ConceptWorkspaceProps) {
       .map((l) => l.trim())
       .filter(Boolean);
   }, [draftL2]);
+
+  const openPathConcept = props.onOpenUpstreamPathConcept ?? props.onOpenConcept;
 
   async function save() {
     setSaving(true);
@@ -751,6 +755,8 @@ export function ConceptWorkspace(props: ConceptWorkspaceProps) {
           graph={props.graph}
           conceptId={concept.id}
           onOpenConcept={props.onOpenConcept}
+          onOpenPathConcept={openPathConcept}
+          highlightedUpstreamConceptId={props.upstreamFocusConceptId}
         />
       ) : null}
       </>
