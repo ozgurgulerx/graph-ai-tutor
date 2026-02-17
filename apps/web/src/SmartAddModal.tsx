@@ -1,9 +1,9 @@
 import { useState } from "react";
 
-import { postConcept } from "./api/client";
+import { postCapture } from "./api/client";
 
 type SmartAddModalProps = {
-  onCreated: (conceptId: string) => void;
+  onCaptured: (changesetId: string) => void;
   onClose: () => void;
 };
 
@@ -20,10 +20,10 @@ export function SmartAddModal(props: SmartAddModalProps) {
     setError(null);
 
     try {
-      const { concept } = await postConcept({ title: trimmed });
-      props.onCreated(concept.id);
+      const { changesetId } = await postCapture({ text: trimmed });
+      props.onCaptured(changesetId);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Unable to add concept");
+      setError(err instanceof Error ? err.message : "Unable to create smart add draft");
     } finally {
       setLoading(false);
     }
@@ -32,10 +32,10 @@ export function SmartAddModal(props: SmartAddModalProps) {
   return (
     <div className="modalOverlay" data-testid="smart-add-modal" onClick={props.onClose}>
       <div className="modalContent" onClick={(e) => e.stopPropagation()}>
-        <h3 className="paneTitle">Add concept</h3>
+        <h3 className="paneTitle">Smart add concept</h3>
 
         <label className="mutedText" htmlFor="smart-add-title">
-          Concept title
+          Describe what you learned
         </label>
         <input
           id="smart-add-title"
@@ -44,7 +44,7 @@ export function SmartAddModal(props: SmartAddModalProps) {
           onChange={(e) => setTitle(e.target.value)}
           placeholder="e.g., Retrieval-augmented generation"
           disabled={loading}
-          maxLength={160}
+          maxLength={2000}
           data-testid="smart-add-title"
         />
 
@@ -62,7 +62,7 @@ export function SmartAddModal(props: SmartAddModalProps) {
             disabled={loading || !title.trim()}
             data-testid="smart-add-submit"
           >
-            {loading ? "Creating..." : "Create"}
+            {loading ? "Analyzing..." : "Create smart draft"}
           </button>
           <button type="button" className="secondaryButton" onClick={props.onClose} disabled={loading}>
             Cancel

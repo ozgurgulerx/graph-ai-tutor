@@ -33,6 +33,7 @@ import {
   postDraftEdge
 } from "./api/client";
 import { CaptureModal } from "./CaptureModal";
+import { DocIngestModal } from "./DocIngestModal";
 import { SmartAddModal } from "./SmartAddModal";
 import { ConceptInspectorV2 } from "./concept/ConceptInspectorV2";
 import { ConceptTree } from "./ConceptTree";
@@ -1733,6 +1734,7 @@ export default function App() {
 
   const [captureOpen, setCaptureOpen] = useState(false);
   const [smartAddOpen, setSmartAddOpen] = useState(false);
+  const [docIngestOpen, setDocIngestOpen] = useState(false);
 
   const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
   const [trainingPanelOpen, setTrainingPanelOpen] = useState(false);
@@ -1977,6 +1979,10 @@ export default function App() {
       setSmartAddOpen(false);
       return true;
     }
+    if (docIngestOpen) {
+      setDocIngestOpen(false);
+      return true;
+    }
     if (captureOpen) {
       setCaptureOpen(false);
       return true;
@@ -1993,6 +1999,7 @@ export default function App() {
   }, [
     addConceptOpen,
     smartAddOpen,
+    docIngestOpen,
     shortcutsHelpOpen,
     captureOpen,
     commandPaletteOpen,
@@ -2136,6 +2143,11 @@ export default function App() {
         id: "smart-add-concept",
         label: "Smart Add Concept",
         onSelect: () => setSmartAddOpen(true)
+      },
+      {
+        id: "doc-ingest",
+        label: "Ingest Document",
+        onSelect: () => setDocIngestOpen(true)
       },
       {
         id: "show-shortcuts",
@@ -2698,17 +2710,36 @@ export default function App() {
           >
             Capture
           </button>
+          <button
+            type="button"
+            className="secondaryButton"
+            onClick={() => setDocIngestOpen(true)}
+            data-testid="doc-ingest-open"
+          >
+            Ingest
+          </button>
         </div>
       </header>
 
       {smartAddOpen ? (
         <SmartAddModal
-          onCreated={(conceptId) => {
+          onCaptured={() => {
             setSmartAddOpen(false);
+            openWorkbench("inbox");
+            void refreshWorkbenchCounts();
             void refreshGraph();
-            selectConcept(conceptId, "programmatic");
           }}
           onClose={() => setSmartAddOpen(false)}
+        />
+      ) : null}
+
+      {docIngestOpen ? (
+        <DocIngestModal
+          onApplied={() => {
+            setDocIngestOpen(false);
+            void refreshGraph();
+          }}
+          onClose={() => setDocIngestOpen(false)}
         />
       ) : null}
 
