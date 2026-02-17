@@ -8,12 +8,12 @@ type SmartAddModalProps = {
 };
 
 export function SmartAddModal(props: SmartAddModalProps) {
-  const [title, setTitle] = useState("");
+  const [text, setText] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   async function handleSubmit() {
-    const trimmed = title.trim();
+    const trimmed = text.trim();
     if (!trimmed) return;
 
     setLoading(true);
@@ -40,13 +40,16 @@ export function SmartAddModal(props: SmartAddModalProps) {
         <input
           id="smart-add-title"
           className="textInput"
-          value={title}
-          onChange={(e) => setTitle(e.target.value)}
-          placeholder="e.g., Retrieval-augmented generation"
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+          placeholder="I learned that RAG combines retrieval with generation."
           disabled={loading}
-          maxLength={2000}
+          maxLength={10000}
           data-testid="smart-add-title"
         />
+        <p className="mutedText">
+          This creates a smart draft in Inbox with inferred relationships for review.
+        </p>
 
         {error ? (
           <p role="alert" className="errorText">
@@ -59,7 +62,7 @@ export function SmartAddModal(props: SmartAddModalProps) {
             type="button"
             className="primaryButton"
             onClick={handleSubmit}
-            disabled={loading || !title.trim()}
+            disabled={loading || !text.trim()}
             data-testid="smart-add-submit"
           >
             {loading ? "Analyzing..." : "Create smart draft"}
