@@ -2982,6 +2982,1119 @@
       "l1": [],
       "l2": [],
       "module": "adaptive_flywheels"
+    },
+    {
+      "id": "genai.ecosystem",
+      "title": "LLM Ecosystem",
+      "kind": "Domain",
+      "l0": "Vendors, model families, platforms, repositories, and licensing for the LLM landscape.",
+      "l1": [],
+      "l2": [],
+      "module": "ecosystem"
+    },
+    {
+      "id": "genai.ecosystem.vendors.openai",
+      "title": "OpenAI",
+      "kind": "Company",
+      "l0": "Creator of GPT series, DALL-E, and ChatGPT.",
+      "l1": [],
+      "l2": [],
+      "module": "ecosystem"
+    },
+    {
+      "id": "genai.ecosystem.vendors.anthropic",
+      "title": "Anthropic",
+      "kind": "Company",
+      "l0": "AI safety company; creator of the Claude model family.",
+      "l1": [],
+      "l2": [],
+      "module": "ecosystem"
+    },
+    {
+      "id": "genai.ecosystem.vendors.google",
+      "title": "Google DeepMind",
+      "kind": "Company",
+      "l0": "Merged AI lab behind Gemini, AlphaFold, and foundational research.",
+      "l1": [],
+      "l2": [],
+      "module": "ecosystem"
+    },
+    {
+      "id": "genai.ecosystem.vendors.meta",
+      "title": "Meta AI",
+      "kind": "Company",
+      "l0": "Open-weights advocate; creator of the Llama model family.",
+      "l1": [],
+      "l2": [],
+      "module": "ecosystem"
+    },
+    {
+      "id": "genai.ecosystem.vendors.mistral",
+      "title": "Mistral AI",
+      "kind": "Company",
+      "l0": "European AI lab building open and commercial Mistral/Mixtral models.",
+      "l1": [],
+      "l2": [],
+      "module": "ecosystem"
+    },
+    {
+      "id": "genai.ecosystem.vendors.cohere",
+      "title": "Cohere",
+      "kind": "Company",
+      "l0": "Enterprise LLM provider; Command R family with RAG focus.",
+      "l1": [],
+      "l2": [],
+      "module": "ecosystem"
+    },
+    {
+      "id": "genai.ecosystem.vendors.microsoft",
+      "title": "Microsoft",
+      "kind": "Company",
+      "l0": "Azure OpenAI host; Phi small-model research; major AI infra provider.",
+      "l1": [],
+      "l2": [],
+      "module": "ecosystem"
+    },
+    {
+      "id": "genai.ecosystem.vendors.alibaba",
+      "title": "Alibaba Cloud (Qwen)",
+      "kind": "Company",
+      "l0": "Chinese cloud provider; Qwen open-weight model family.",
+      "l1": [],
+      "l2": [],
+      "module": "ecosystem"
+    },
+    {
+      "id": "genai.ecosystem.vendors.baidu",
+      "title": "Baidu (ERNIE)",
+      "kind": "Company",
+      "l0": "Chinese search company; ERNIE model family.",
+      "l1": [],
+      "l2": [],
+      "module": "ecosystem"
+    },
+    {
+      "id": "genai.ecosystem.vendors.tencent",
+      "title": "Tencent (Hunyuan)",
+      "kind": "Company",
+      "l0": "Chinese tech conglomerate; Hunyuan model family.",
+      "l1": [],
+      "l2": [],
+      "module": "ecosystem"
+    },
+    {
+      "id": "genai.ecosystem.vendors.deepseek",
+      "title": "DeepSeek",
+      "kind": "Company",
+      "l0": "Chinese AI lab; DeepSeek-V3 series with strong open-weight performance.",
+      "l1": [],
+      "l2": [],
+      "module": "ecosystem"
+    },
+    {
+      "id": "genai.ecosystem.vendors.xai",
+      "title": "xAI",
+      "kind": "Company",
+      "l0": "Elon Musk's AI company; creator of Grok models.",
+      "l1": [],
+      "l2": [],
+      "module": "ecosystem"
+    },
+    {
+      "id": "genai.ecosystem.vendors.aleph_alpha",
+      "title": "Aleph Alpha",
+      "kind": "Company",
+      "l0": "European AI company focused on sovereign, explainable LLMs.",
+      "l1": [],
+      "l2": [],
+      "module": "ecosystem"
+    },
+    {
+      "id": "genai.ecosystem.vendors.stability_ai",
+      "title": "Stability AI",
+      "kind": "Company",
+      "l0": "Open-source generative AI; Stable Diffusion, Stable LM.",
+      "l1": [],
+      "l2": [],
+      "module": "ecosystem"
+    },
+    {
+      "id": "genai.ecosystem.vendors.hugging_face",
+      "title": "Hugging Face",
+      "kind": "Company",
+      "l0": "AI community hub; Transformers library, Hub, Inference Endpoints.",
+      "l1": [],
+      "l2": [],
+      "module": "ecosystem"
+    },
+    {
+      "id": "genai.ecosystem.vendors.liquid_ai",
+      "title": "Liquid AI",
+      "kind": "Company",
+      "l0": "MIT-spinoff building Liquid Foundation Models based on liquid time-constant networks.",
+      "l1": [],
+      "l2": [],
+      "module": "ecosystem"
+    },
+    {
+      "id": "genai.ecosystem.families.gpt4",
+      "title": "GPT-4 Family",
+      "kind": "ModelFamily",
+      "l0": "OpenAI's GPT-4 series including GPT-4 Turbo and GPT-4.1.",
+      "l1": [],
+      "l2": [],
+      "module": "ecosystem"
+    },
+    {
+      "id": "genai.ecosystem.families.gpt4o",
+      "title": "GPT-4o Family",
+      "kind": "ModelFamily",
+      "l0": "OpenAI's omni-model family optimized for multimodal and speed.",
+      "l1": [],
+      "l2": [],
+      "module": "ecosystem"
+    },
+    {
+      "id": "genai.ecosystem.families.o_series",
+      "title": "OpenAI o-series (o1, o3)",
+      "kind": "ModelFamily",
+      "l0": "OpenAI's reasoning-focused model family using extended thinking.",
+      "l1": [],
+      "l2": [],
+      "module": "ecosystem"
+    },
+    {
+      "id": "genai.ecosystem.families.claude",
+      "title": "Claude Family (Opus/Sonnet/Haiku)",
+      "kind": "ModelFamily",
+      "l0": "Anthropic's model family spanning capability tiers.",
+      "l1": [],
+      "l2": [],
+      "module": "ecosystem"
+    },
+    {
+      "id": "genai.ecosystem.families.gemini",
+      "title": "Gemini Family",
+      "kind": "ModelFamily",
+      "l0": "Google DeepMind's multimodal model family.",
+      "l1": [],
+      "l2": [],
+      "module": "ecosystem"
+    },
+    {
+      "id": "genai.ecosystem.families.llama3",
+      "title": "Llama 3 Family",
+      "kind": "ModelFamily",
+      "l0": "Meta's open-weight Llama 3 series.",
+      "l1": [],
+      "l2": [],
+      "module": "ecosystem"
+    },
+    {
+      "id": "genai.ecosystem.families.mistral_models",
+      "title": "Mistral / Mixtral Family",
+      "kind": "ModelFamily",
+      "l0": "Mistral AI's open and commercial models including MoE variants.",
+      "l1": [],
+      "l2": [],
+      "module": "ecosystem"
+    },
+    {
+      "id": "genai.ecosystem.families.command_r",
+      "title": "Command R Family",
+      "kind": "ModelFamily",
+      "l0": "Cohere's enterprise LLMs optimized for RAG and tool use.",
+      "l1": [],
+      "l2": [],
+      "module": "ecosystem"
+    },
+    {
+      "id": "genai.ecosystem.families.phi",
+      "title": "Phi Family (Microsoft)",
+      "kind": "ModelFamily",
+      "l0": "Microsoft's small language models (SLMs) with strong performance per parameter.",
+      "l1": [],
+      "l2": [],
+      "module": "ecosystem"
+    },
+    {
+      "id": "genai.ecosystem.families.qwen3",
+      "title": "Qwen3 Family",
+      "kind": "ModelFamily",
+      "l0": "Alibaba's open-weight multilingual model family.",
+      "l1": [],
+      "l2": [],
+      "module": "ecosystem"
+    },
+    {
+      "id": "genai.ecosystem.families.ernie",
+      "title": "ERNIE Family (Baidu)",
+      "kind": "ModelFamily",
+      "l0": "Baidu's knowledge-enhanced language models.",
+      "l1": [],
+      "l2": [],
+      "module": "ecosystem"
+    },
+    {
+      "id": "genai.ecosystem.families.hunyuan",
+      "title": "Hunyuan Family (Tencent)",
+      "kind": "ModelFamily",
+      "l0": "Tencent's large language and multimodal models.",
+      "l1": [],
+      "l2": [],
+      "module": "ecosystem"
+    },
+    {
+      "id": "genai.ecosystem.families.deepseek_v3",
+      "title": "DeepSeek-V3 Family",
+      "kind": "ModelFamily",
+      "l0": "DeepSeek's high-performance open-weight MoE models.",
+      "l1": [],
+      "l2": [],
+      "module": "ecosystem"
+    },
+    {
+      "id": "genai.ecosystem.families.lfm",
+      "title": "LFM Family (Liquid AI)",
+      "kind": "ModelFamily",
+      "l0": "Liquid AI's foundation models based on liquid time-constant architectures.",
+      "l1": [],
+      "l2": [],
+      "module": "ecosystem"
+    },
+    {
+      "id": "genai.ecosystem.models.gpt4o",
+      "title": "GPT-4o",
+      "kind": "Model",
+      "l0": "OpenAI's flagship omni model; multimodal input/output.",
+      "l1": [],
+      "l2": [],
+      "module": "ecosystem"
+    },
+    {
+      "id": "genai.ecosystem.models.gpt4_1",
+      "title": "GPT-4.1",
+      "kind": "Model",
+      "l0": "OpenAI's coding-optimized GPT-4 variant.",
+      "l1": [],
+      "l2": [],
+      "module": "ecosystem"
+    },
+    {
+      "id": "genai.ecosystem.models.o1",
+      "title": "o1",
+      "kind": "Model",
+      "l0": "OpenAI's first reasoning model with chain-of-thought at inference.",
+      "l1": [],
+      "l2": [],
+      "module": "ecosystem"
+    },
+    {
+      "id": "genai.ecosystem.models.o3",
+      "title": "o3",
+      "kind": "Model",
+      "l0": "OpenAI's advanced reasoning model succeeding o1.",
+      "l1": [],
+      "l2": [],
+      "module": "ecosystem"
+    },
+    {
+      "id": "genai.ecosystem.models.claude_opus",
+      "title": "Claude Opus 4.6",
+      "kind": "Model",
+      "l0": "Anthropic's most capable model; excels at complex, agentic tasks.",
+      "l1": [],
+      "l2": [],
+      "module": "ecosystem"
+    },
+    {
+      "id": "genai.ecosystem.models.claude_sonnet",
+      "title": "Claude Sonnet 4.5",
+      "kind": "Model",
+      "l0": "Anthropic's balanced model; strong coding and reasoning.",
+      "l1": [],
+      "l2": [],
+      "module": "ecosystem"
+    },
+    {
+      "id": "genai.ecosystem.models.claude_haiku",
+      "title": "Claude Haiku 4.5",
+      "kind": "Model",
+      "l0": "Anthropic's fastest and most cost-effective model.",
+      "l1": [],
+      "l2": [],
+      "module": "ecosystem"
+    },
+    {
+      "id": "genai.ecosystem.models.gemini_2_5_pro",
+      "title": "Gemini 2.5 Pro",
+      "kind": "Model",
+      "l0": "Google's most capable Gemini model with extended thinking.",
+      "l1": [],
+      "l2": [],
+      "module": "ecosystem"
+    },
+    {
+      "id": "genai.ecosystem.models.llama_3_3_70b",
+      "title": "Llama 3.3 70B Instruct",
+      "kind": "Model",
+      "l0": "Meta's open-weight 70B instruction-tuned model.",
+      "l1": [],
+      "l2": [],
+      "module": "ecosystem"
+    },
+    {
+      "id": "genai.ecosystem.models.mistral_large_3",
+      "title": "Mistral Large 3",
+      "kind": "Model",
+      "l0": "Mistral's flagship commercial model.",
+      "l1": [],
+      "l2": [],
+      "module": "ecosystem"
+    },
+    {
+      "id": "genai.ecosystem.models.mixtral",
+      "title": "Mixtral 8x22B",
+      "kind": "Model",
+      "l0": "Mistral's large MoE model; 8 experts with 22B params each.",
+      "l1": [],
+      "l2": [],
+      "module": "ecosystem"
+    },
+    {
+      "id": "genai.ecosystem.models.command_r_plus",
+      "title": "Command R+",
+      "kind": "Model",
+      "l0": "Cohere's most capable RAG-optimized model.",
+      "l1": [],
+      "l2": [],
+      "module": "ecosystem"
+    },
+    {
+      "id": "genai.ecosystem.models.phi_4",
+      "title": "Phi-4",
+      "kind": "Model",
+      "l0": "Microsoft's small but powerful reasoning model.",
+      "l1": [],
+      "l2": [],
+      "module": "ecosystem"
+    },
+    {
+      "id": "genai.ecosystem.models.qwen3",
+      "title": "Qwen3",
+      "kind": "Model",
+      "l0": "Alibaba's latest multilingual model.",
+      "l1": [],
+      "l2": [],
+      "module": "ecosystem"
+    },
+    {
+      "id": "genai.ecosystem.models.ernie_4_5",
+      "title": "ERNIE 4.5",
+      "kind": "Model",
+      "l0": "Baidu's latest ERNIE large language model.",
+      "l1": [],
+      "l2": [],
+      "module": "ecosystem"
+    },
+    {
+      "id": "genai.ecosystem.models.hunyuan_large",
+      "title": "Hunyuan-Large",
+      "kind": "Model",
+      "l0": "Tencent's largest open-source MoE model.",
+      "l1": [],
+      "l2": [],
+      "module": "ecosystem"
+    },
+    {
+      "id": "genai.ecosystem.models.deepseek_v3",
+      "title": "DeepSeek-V3.2",
+      "kind": "Model",
+      "l0": "DeepSeek's latest high-performance open-weight MoE model.",
+      "l1": [],
+      "l2": [],
+      "module": "ecosystem"
+    },
+    {
+      "id": "genai.ecosystem.models.grok",
+      "title": "Grok",
+      "kind": "Model",
+      "l0": "xAI's conversational model with real-time information access.",
+      "l1": [],
+      "l2": [],
+      "module": "ecosystem"
+    },
+    {
+      "id": "genai.ecosystem.models.lfm2",
+      "title": "LFM-2",
+      "kind": "Model",
+      "l0": "Liquid AI's latest foundation model using liquid time-constant networks.",
+      "l1": [],
+      "l2": [],
+      "module": "ecosystem"
+    },
+    {
+      "id": "genai.ecosystem.platforms.openai_api",
+      "title": "OpenAI API",
+      "kind": "Platform",
+      "l0": "OpenAI's hosted API for GPT, DALL-E, and Whisper models.",
+      "l1": [],
+      "l2": [],
+      "module": "ecosystem"
+    },
+    {
+      "id": "genai.ecosystem.platforms.azure_openai",
+      "title": "Azure OpenAI Service",
+      "kind": "Platform",
+      "l0": "Microsoft Azure-hosted OpenAI models with enterprise features.",
+      "l1": [],
+      "l2": [],
+      "module": "ecosystem"
+    },
+    {
+      "id": "genai.ecosystem.platforms.anthropic_api",
+      "title": "Anthropic API",
+      "kind": "Platform",
+      "l0": "Anthropic's hosted API for Claude models.",
+      "l1": [],
+      "l2": [],
+      "module": "ecosystem"
+    },
+    {
+      "id": "genai.ecosystem.platforms.vertex_ai",
+      "title": "Google Vertex AI",
+      "kind": "Platform",
+      "l0": "Google Cloud's ML platform hosting Gemini and open models.",
+      "l1": [],
+      "l2": [],
+      "module": "ecosystem"
+    },
+    {
+      "id": "genai.ecosystem.platforms.gemini_api",
+      "title": "Gemini API",
+      "kind": "Platform",
+      "l0": "Google's direct API for Gemini models.",
+      "l1": [],
+      "l2": [],
+      "module": "ecosystem"
+    },
+    {
+      "id": "genai.ecosystem.platforms.hf_inference",
+      "title": "Hugging Face Inference Endpoints",
+      "kind": "Platform",
+      "l0": "Managed inference for any Hugging Face Hub model.",
+      "l1": [],
+      "l2": [],
+      "module": "ecosystem"
+    },
+    {
+      "id": "genai.ecosystem.platforms.hf_tgi",
+      "title": "Hugging Face TGI",
+      "kind": "Platform",
+      "l0": "Open-source high-performance text generation server.",
+      "l1": [],
+      "l2": [],
+      "module": "ecosystem"
+    },
+    {
+      "id": "genai.ecosystem.platforms.together_ai",
+      "title": "Together AI",
+      "kind": "Platform",
+      "l0": "Cloud platform for running open-source models at scale.",
+      "l1": [],
+      "l2": [],
+      "module": "ecosystem"
+    },
+    {
+      "id": "genai.ecosystem.platforms.fireworks",
+      "title": "Fireworks AI",
+      "kind": "Platform",
+      "l0": "Fast inference platform specialized for open models.",
+      "l1": [],
+      "l2": [],
+      "module": "ecosystem"
+    },
+    {
+      "id": "genai.ecosystem.platforms.replicate",
+      "title": "Replicate",
+      "kind": "Platform",
+      "l0": "Run ML models via API with simple deployment.",
+      "l1": [],
+      "l2": [],
+      "module": "ecosystem"
+    },
+    {
+      "id": "genai.ecosystem.platforms.deepseek_api",
+      "title": "DeepSeek API",
+      "kind": "Platform",
+      "l0": "DeepSeek's hosted API for their model family.",
+      "l1": [],
+      "l2": [],
+      "module": "ecosystem"
+    },
+    {
+      "id": "genai.ecosystem.repos.transformers",
+      "title": "Hugging Face Transformers",
+      "kind": "Repository",
+      "l0": "The most popular open-source library for transformer models; supports training and inference.",
+      "l1": [],
+      "l2": [],
+      "module": "ecosystem"
+    },
+    {
+      "id": "genai.ecosystem.repos.vllm",
+      "title": "vLLM",
+      "kind": "Repository",
+      "l0": "Open-source high-throughput LLM serving engine with PagedAttention.",
+      "l1": [],
+      "l2": [],
+      "module": "ecosystem"
+    },
+    {
+      "id": "genai.ecosystem.repos.llama_cpp",
+      "title": "llama.cpp",
+      "kind": "Repository",
+      "l0": "C++ inference engine for running LLMs on CPU and consumer hardware.",
+      "l1": [],
+      "l2": [],
+      "module": "ecosystem"
+    },
+    {
+      "id": "genai.ecosystem.repos.ollama",
+      "title": "Ollama",
+      "kind": "Repository",
+      "l0": "Tool for running LLMs locally with simple CLI interface.",
+      "l1": [],
+      "l2": [],
+      "module": "ecosystem"
+    },
+    {
+      "id": "genai.ecosystem.repos.langchain",
+      "title": "LangChain",
+      "kind": "Repository",
+      "l0": "Framework for building LLM-powered applications with chains and agents.",
+      "l1": [],
+      "l2": [],
+      "module": "ecosystem"
+    },
+    {
+      "id": "genai.ecosystem.repos.llamaindex",
+      "title": "LlamaIndex",
+      "kind": "Repository",
+      "l0": "Data framework for connecting LLMs with external data sources (RAG).",
+      "l1": [],
+      "l2": [],
+      "module": "ecosystem"
+    },
+    {
+      "id": "genai.ecosystem.repos.tgi",
+      "title": "Text Generation Inference (TGI)",
+      "kind": "Repository",
+      "l0": "Hugging Face's production inference server for text generation.",
+      "l1": [],
+      "l2": [],
+      "module": "ecosystem"
+    },
+    {
+      "id": "genai.ecosystem.licenses.apache2",
+      "title": "Apache 2.0 License",
+      "kind": "License",
+      "l0": "Permissive open-source license used by many AI frameworks and models.",
+      "l1": [],
+      "l2": [],
+      "module": "ecosystem"
+    },
+    {
+      "id": "genai.ecosystem.licenses.mit",
+      "title": "MIT License",
+      "kind": "License",
+      "l0": "Permissive open-source license; minimal restrictions.",
+      "l1": [],
+      "l2": [],
+      "module": "ecosystem"
+    },
+    {
+      "id": "genai.ecosystem.licenses.llama3",
+      "title": "Llama 3 Community License",
+      "kind": "License",
+      "l0": "Meta's custom license for Llama 3 models; open with usage restrictions.",
+      "l1": [],
+      "l2": [],
+      "module": "ecosystem"
+    },
+    {
+      "id": "genai.ecosystem.licenses.proprietary",
+      "title": "Proprietary API Terms",
+      "kind": "License",
+      "l0": "Closed models available only through API access with usage terms.",
+      "l1": [],
+      "l2": [],
+      "module": "ecosystem"
+    },
+    {
+      "id": "genai.ecosystem.licenses.stability",
+      "title": "Stability AI Community License",
+      "kind": "License",
+      "l0": "Stability AI's license for open model weights with community terms.",
+      "l1": [],
+      "l2": [],
+      "module": "ecosystem"
+    },
+    {
+      "id": "genai.research",
+      "title": "Research Papers & Provenance",
+      "kind": "Domain",
+      "l0": "Seminal research papers that introduced key concepts and methods.",
+      "l1": [],
+      "l2": [],
+      "module": "research"
+    },
+    {
+      "id": "genai.research.papers.transformer",
+      "title": "Attention Is All You Need (2017)",
+      "kind": "Artifact",
+      "l0": "Introduced the Transformer architecture with self-attention.",
+      "l1": [],
+      "l2": [],
+      "module": "research"
+    },
+    {
+      "id": "genai.research.papers.bert",
+      "title": "BERT: Pre-training of Deep Bidirectional Transformers (2018)",
+      "kind": "Artifact",
+      "l0": "Introduced bidirectional masked language model pretraining.",
+      "l1": [],
+      "l2": [],
+      "module": "research"
+    },
+    {
+      "id": "genai.research.papers.t5",
+      "title": "T5: Text-to-Text Transfer Transformer (2019)",
+      "kind": "Artifact",
+      "l0": "Unified NLP tasks into a text-to-text framework.",
+      "l1": [],
+      "l2": [],
+      "module": "research"
+    },
+    {
+      "id": "genai.research.papers.gpt2",
+      "title": "Language Models are Unsupervised Multitask Learners (GPT-2, 2019)",
+      "kind": "Artifact",
+      "l0": "Showed large LMs can perform tasks zero-shot without fine-tuning.",
+      "l1": [],
+      "l2": [],
+      "module": "research"
+    },
+    {
+      "id": "genai.research.papers.gpt3",
+      "title": "Language Models are Few-Shot Learners (GPT-3, 2020)",
+      "kind": "Artifact",
+      "l0": "Demonstrated in-context few-shot learning at scale.",
+      "l1": [],
+      "l2": [],
+      "module": "research"
+    },
+    {
+      "id": "genai.research.papers.rag",
+      "title": "Retrieval-Augmented Generation (RAG, 2020)",
+      "kind": "Artifact",
+      "l0": "Combined retrieval with generation for knowledge-grounded outputs.",
+      "l1": [],
+      "l2": [],
+      "module": "research"
+    },
+    {
+      "id": "genai.research.papers.realm",
+      "title": "REALM: Retrieval-Augmented Language Model Pre-Training (2020)",
+      "kind": "Artifact",
+      "l0": "Pre-training with a learned retriever for knowledge-intensive tasks.",
+      "l1": [],
+      "l2": [],
+      "module": "research"
+    },
+    {
+      "id": "genai.research.papers.scaling_laws",
+      "title": "Scaling Laws for Neural Language Models (Kaplan et al., 2020)",
+      "kind": "Artifact",
+      "l0": "Characterized power-law relationships between compute, data, and model size.",
+      "l1": [],
+      "l2": [],
+      "module": "research"
+    },
+    {
+      "id": "genai.research.papers.mmlu",
+      "title": "MMLU Benchmark (2020)",
+      "kind": "Artifact",
+      "l0": "Massive Multitask Language Understanding benchmark across 57 subjects.",
+      "l1": [],
+      "l2": [],
+      "module": "research"
+    },
+    {
+      "id": "genai.research.papers.s4",
+      "title": "Efficiently Modeling Long Sequences with Structured State Spaces (S4, 2021)",
+      "kind": "Artifact",
+      "l0": "Introduced structured state space models for long-range sequence modeling.",
+      "l1": [],
+      "l2": [],
+      "module": "research"
+    },
+    {
+      "id": "genai.research.papers.switch_transformer",
+      "title": "Switch Transformers (2021)",
+      "kind": "Artifact",
+      "l0": "Simplified MoE with one-expert routing for trillion-parameter models.",
+      "l1": [],
+      "l2": [],
+      "module": "research"
+    },
+    {
+      "id": "genai.research.papers.rope",
+      "title": "RoTary Position Embedding (RoPE, 2021)",
+      "kind": "Artifact",
+      "l0": "Rotation-based positional encoding enabling length extrapolation.",
+      "l1": [],
+      "l2": [],
+      "module": "research"
+    },
+    {
+      "id": "genai.research.papers.alibi",
+      "title": "ALiBi: Train Short, Test Long (2021)",
+      "kind": "Artifact",
+      "l0": "Linear attention bias replacing positional embeddings.",
+      "l1": [],
+      "l2": [],
+      "module": "research"
+    },
+    {
+      "id": "genai.research.papers.d3pm",
+      "title": "Structured Denoising Diffusion in Discrete State-Spaces (D3PM, 2021)",
+      "kind": "Artifact",
+      "l0": "Extended diffusion models to discrete domains.",
+      "l1": [],
+      "l2": [],
+      "module": "research"
+    },
+    {
+      "id": "genai.research.papers.glam",
+      "title": "GLaM: Efficient Scaling with Mixture-of-Experts (2021)",
+      "kind": "Artifact",
+      "l0": "Demonstrated MoE scaling efficiency compared to dense models.",
+      "l1": [],
+      "l2": [],
+      "module": "research"
+    },
+    {
+      "id": "genai.research.papers.chinchilla",
+      "title": "Training Compute-Optimal Large Language Models (Chinchilla, 2022)",
+      "kind": "Artifact",
+      "l0": "Showed optimal allocation of compute budget between model size and data.",
+      "l1": [],
+      "l2": [],
+      "module": "research"
+    },
+    {
+      "id": "genai.research.papers.cot",
+      "title": "Chain-of-Thought Prompting (2022)",
+      "kind": "Artifact",
+      "l0": "Eliciting step-by-step reasoning through prompting.",
+      "l1": [],
+      "l2": [],
+      "module": "research"
+    },
+    {
+      "id": "genai.research.papers.self_consistency",
+      "title": "Self-Consistency Improves Chain of Thought Reasoning (2022)",
+      "kind": "Artifact",
+      "l0": "Sample multiple reasoning paths and take majority vote.",
+      "l1": [],
+      "l2": [],
+      "module": "research"
+    },
+    {
+      "id": "genai.research.papers.instructgpt",
+      "title": "InstructGPT / Training with Human Feedback (2022)",
+      "kind": "Artifact",
+      "l0": "Pioneered RLHF for aligning LLMs to human instructions.",
+      "l1": [],
+      "l2": [],
+      "module": "research"
+    },
+    {
+      "id": "genai.research.papers.constitutional_ai",
+      "title": "Constitutional AI (2022)",
+      "kind": "Artifact",
+      "l0": "Self-improvement through AI-generated critiques guided by principles.",
+      "l1": [],
+      "l2": [],
+      "module": "research"
+    },
+    {
+      "id": "genai.research.papers.flash_attention",
+      "title": "FlashAttention: Fast and Memory-Efficient Attention (2022)",
+      "kind": "Artifact",
+      "l0": "IO-aware exact attention algorithm that reduces memory reads/writes.",
+      "l1": [],
+      "l2": [],
+      "module": "research"
+    },
+    {
+      "id": "genai.research.papers.diffusion_lm",
+      "title": "Diffusion-LM (2022)",
+      "kind": "Artifact",
+      "l0": "Applied continuous diffusion to text generation.",
+      "l1": [],
+      "l2": [],
+      "module": "research"
+    },
+    {
+      "id": "genai.research.papers.toolformer",
+      "title": "Toolformer: Language Models Can Teach Themselves to Use Tools (2023)",
+      "kind": "Artifact",
+      "l0": "Taught LLMs to use external tools through self-supervised learning.",
+      "l1": [],
+      "l2": [],
+      "module": "research"
+    },
+    {
+      "id": "genai.research.papers.react",
+      "title": "ReAct: Synergizing Reasoning and Acting (2023)",
+      "kind": "Artifact",
+      "l0": "Interleaved reasoning and action for grounded task solving.",
+      "l1": [],
+      "l2": [],
+      "module": "research"
+    },
+    {
+      "id": "genai.research.papers.tree_of_thoughts",
+      "title": "Tree of Thoughts (2023)",
+      "kind": "Artifact",
+      "l0": "Tree-structured exploration of reasoning paths.",
+      "l1": [],
+      "l2": [],
+      "module": "research"
+    },
+    {
+      "id": "genai.research.papers.qlora",
+      "title": "QLoRA: Efficient Finetuning of Quantized LLMs (2023)",
+      "kind": "Artifact",
+      "l0": "4-bit quantized base model with LoRA adapters for efficient fine-tuning.",
+      "l1": [],
+      "l2": [],
+      "module": "research"
+    },
+    {
+      "id": "genai.research.papers.gptq",
+      "title": "GPTQ: Post-Training Quantization (2023)",
+      "kind": "Artifact",
+      "l0": "One-shot weight quantization using approximate second-order information.",
+      "l1": [],
+      "l2": [],
+      "module": "research"
+    },
+    {
+      "id": "genai.research.papers.awq",
+      "title": "AWQ: Activation-aware Weight Quantization (2023)",
+      "kind": "Artifact",
+      "l0": "Quantization that preserves salient weights identified by activation patterns.",
+      "l1": [],
+      "l2": [],
+      "module": "research"
+    },
+    {
+      "id": "genai.research.papers.vllm",
+      "title": "Efficient Memory Management for LLM Serving with PagedAttention (vLLM, 2023)",
+      "kind": "Artifact",
+      "l0": "Introduced PagedAttention for efficient KV cache management.",
+      "l1": [],
+      "l2": [],
+      "module": "research"
+    },
+    {
+      "id": "genai.research.papers.retnet",
+      "title": "Retentive Network (RetNet, 2023)",
+      "kind": "Artifact",
+      "l0": "Dual-form attention supporting both parallel training and recurrent inference.",
+      "l1": [],
+      "l2": [],
+      "module": "research"
+    },
+    {
+      "id": "genai.research.papers.hyena",
+      "title": "Hyena Hierarchy (2023)",
+      "kind": "Artifact",
+      "l0": "Sub-quadratic attention replacement using long convolutions.",
+      "l1": [],
+      "l2": [],
+      "module": "research"
+    },
+    {
+      "id": "genai.research.papers.mamba",
+      "title": "Mamba: Linear-Time Sequence Modeling with Selective State Spaces (2023)",
+      "kind": "Artifact",
+      "l0": "Selective state space model with linear-time inference.",
+      "l1": [],
+      "l2": [],
+      "module": "research"
+    },
+    {
+      "id": "genai.research.papers.dpo",
+      "title": "Direct Preference Optimization (DPO, 2023)",
+      "kind": "Artifact",
+      "l0": "Simplified RLHF by directly optimizing policy from preferences.",
+      "l1": [],
+      "l2": [],
+      "module": "research"
+    },
+    {
+      "id": "genai.research.papers.mt_bench",
+      "title": "MT-Bench / Judging LLM-as-a-Judge (2023)",
+      "kind": "Artifact",
+      "l0": "Multi-turn benchmark using LLM judges for evaluation.",
+      "l1": [],
+      "l2": [],
+      "module": "research"
+    },
+    {
+      "id": "genai.research.papers.retro",
+      "title": "RETRO: Retrieval-Enhanced Transformer (2022)",
+      "kind": "Artifact",
+      "l0": "Pre-training with chunked cross-attention over retrieved neighbors.",
+      "l1": [],
+      "l2": [],
+      "module": "research"
+    },
+    {
+      "id": "genai.research.papers.atlas",
+      "title": "Atlas: Few-shot Learning with Retrieval Augmented LMs (2023)",
+      "kind": "Artifact",
+      "l0": "Jointly trained retriever and LM for few-shot learning.",
+      "l1": [],
+      "l2": [],
+      "module": "research"
+    },
+    {
+      "id": "genai.research.papers.bpe",
+      "title": "Neural Machine Translation of Rare Words with Subword Units (BPE, 2016)",
+      "kind": "Artifact",
+      "l0": "Introduced Byte Pair Encoding for subword tokenization.",
+      "l1": [],
+      "l2": [],
+      "module": "research"
+    },
+    {
+      "id": "genai.research.papers.sentencepiece",
+      "title": "SentencePiece (2018)",
+      "kind": "Artifact",
+      "l0": "Language-independent subword tokenizer and detokenizer.",
+      "l1": [],
+      "l2": [],
+      "module": "research"
+    },
+    {
+      "id": "genai.research.papers.chatbot_arena",
+      "title": "Chatbot Arena (2024)",
+      "kind": "Artifact",
+      "l0": "Crowdsourced LLM evaluation via pairwise human preferences.",
+      "l1": [],
+      "l2": [],
+      "module": "research"
+    },
+    {
+      "id": "genai.llmops.evals.benchmarks.helm",
+      "title": "HELM (Holistic Evaluation of Language Models)",
+      "kind": "Benchmark",
+      "l0": "Stanford's holistic evaluation covering accuracy, robustness, fairness, and efficiency.",
+      "l1": [],
+      "l2": [],
+      "module": "llmops"
+    },
+    {
+      "id": "genai.llmops.evals.benchmarks.mt_bench",
+      "title": "MT-Bench",
+      "kind": "Benchmark",
+      "l0": "Multi-turn benchmark with LLM-as-a-judge for conversational quality.",
+      "l1": [],
+      "l2": [],
+      "module": "llmops"
+    },
+    {
+      "id": "genai.llmops.evals.benchmarks.chatbot_arena",
+      "title": "Chatbot Arena (LMSYS)",
+      "kind": "Benchmark",
+      "l0": "Crowdsourced blind pairwise comparison platform for LLM ranking.",
+      "l1": [],
+      "l2": [],
+      "module": "llmops"
+    },
+    {
+      "id": "genai.llmops.evals.benchmarks.mmlu",
+      "title": "MMLU",
+      "kind": "Benchmark",
+      "l0": "Massive Multitask Language Understanding across 57 academic subjects.",
+      "l1": [],
+      "l2": [],
+      "module": "llmops"
+    },
+    {
+      "id": "genai.models.architectures.retention",
+      "title": "Retention Networks (RetNet)",
+      "kind": "Architecture",
+      "l0": "Dual-form architecture: parallel training like transformers, recurrent inference for efficiency.",
+      "l1": [
+        "O(n) inference cost",
+        "Competes with attention-based models"
+      ],
+      "l2": [],
+      "module": "models"
+    },
+    {
+      "id": "genai.models.architectures.long_conv",
+      "title": "Long-convolution LMs (Hyena)",
+      "kind": "Architecture",
+      "l0": "Replace attention with learnable long convolutions for sub-quadratic sequence modeling.",
+      "l1": [
+        "Sub-quadratic complexity",
+        "Strong on long-range dependencies"
+      ],
+      "l2": [],
+      "module": "models"
+    },
+    {
+      "id": "genai.models.architectures.rwkv",
+      "title": "RWKV",
+      "kind": "Architecture",
+      "l0": "Combines RNN efficiency with transformer-level parallelism for training.",
+      "l1": [
+        "Linear attention variant",
+        "Supports both parallel and sequential modes"
+      ],
+      "l2": [],
+      "module": "models"
+    },
+    {
+      "id": "genai.models.architectures.perceiver",
+      "title": "Perceiver / Latent Bottleneck Models",
+      "kind": "Architecture",
+      "l0": "Cross-attention to a fixed-size latent array enables handling arbitrary input sizes.",
+      "l1": [
+        "Modality-agnostic",
+        "Handles very long or multimodal inputs"
+      ],
+      "l2": [],
+      "module": "models"
+    },
+    {
+      "id": "genai.models.architectures.continual_llm",
+      "title": "Continual / Online LLMs",
+      "kind": "Architecture",
+      "l0": "Architectures designed for continuous learning without catastrophic forgetting.",
+      "l1": [
+        "Emerging research area",
+        "Relevant for lifelong agents"
+      ],
+      "l2": [],
+      "module": "models"
     }
   ],
   "sources": [
@@ -6846,6 +7959,1996 @@
       "fromConceptId": "genai.adaptive_flywheels.failure_modes.bias_amplification",
       "toConceptId": "genai.governance",
       "type": "GOVERNED_BY",
+      "sourceUrl": null,
+      "confidence": null,
+      "verifierScore": null,
+      "evidenceChunkIds": []
+    },
+    {
+      "id": "edge_372",
+      "fromConceptId": "genai",
+      "toConceptId": "genai.ecosystem",
+      "type": "HAS_MAJOR_AREA",
+      "sourceUrl": null,
+      "confidence": null,
+      "verifierScore": null,
+      "evidenceChunkIds": []
+    },
+    {
+      "id": "edge_373",
+      "fromConceptId": "genai.ecosystem",
+      "toConceptId": "genai.ecosystem.vendors.openai",
+      "type": "HAS_VENDOR",
+      "sourceUrl": null,
+      "confidence": null,
+      "verifierScore": null,
+      "evidenceChunkIds": []
+    },
+    {
+      "id": "edge_374",
+      "fromConceptId": "genai.ecosystem",
+      "toConceptId": "genai.ecosystem.vendors.anthropic",
+      "type": "HAS_VENDOR",
+      "sourceUrl": null,
+      "confidence": null,
+      "verifierScore": null,
+      "evidenceChunkIds": []
+    },
+    {
+      "id": "edge_375",
+      "fromConceptId": "genai.ecosystem",
+      "toConceptId": "genai.ecosystem.vendors.google",
+      "type": "HAS_VENDOR",
+      "sourceUrl": null,
+      "confidence": null,
+      "verifierScore": null,
+      "evidenceChunkIds": []
+    },
+    {
+      "id": "edge_376",
+      "fromConceptId": "genai.ecosystem",
+      "toConceptId": "genai.ecosystem.vendors.meta",
+      "type": "HAS_VENDOR",
+      "sourceUrl": null,
+      "confidence": null,
+      "verifierScore": null,
+      "evidenceChunkIds": []
+    },
+    {
+      "id": "edge_377",
+      "fromConceptId": "genai.ecosystem",
+      "toConceptId": "genai.ecosystem.vendors.mistral",
+      "type": "HAS_VENDOR",
+      "sourceUrl": null,
+      "confidence": null,
+      "verifierScore": null,
+      "evidenceChunkIds": []
+    },
+    {
+      "id": "edge_378",
+      "fromConceptId": "genai.ecosystem",
+      "toConceptId": "genai.ecosystem.vendors.cohere",
+      "type": "HAS_VENDOR",
+      "sourceUrl": null,
+      "confidence": null,
+      "verifierScore": null,
+      "evidenceChunkIds": []
+    },
+    {
+      "id": "edge_379",
+      "fromConceptId": "genai.ecosystem",
+      "toConceptId": "genai.ecosystem.vendors.microsoft",
+      "type": "HAS_VENDOR",
+      "sourceUrl": null,
+      "confidence": null,
+      "verifierScore": null,
+      "evidenceChunkIds": []
+    },
+    {
+      "id": "edge_380",
+      "fromConceptId": "genai.ecosystem",
+      "toConceptId": "genai.ecosystem.vendors.alibaba",
+      "type": "HAS_VENDOR",
+      "sourceUrl": null,
+      "confidence": null,
+      "verifierScore": null,
+      "evidenceChunkIds": []
+    },
+    {
+      "id": "edge_381",
+      "fromConceptId": "genai.ecosystem",
+      "toConceptId": "genai.ecosystem.vendors.baidu",
+      "type": "HAS_VENDOR",
+      "sourceUrl": null,
+      "confidence": null,
+      "verifierScore": null,
+      "evidenceChunkIds": []
+    },
+    {
+      "id": "edge_382",
+      "fromConceptId": "genai.ecosystem",
+      "toConceptId": "genai.ecosystem.vendors.tencent",
+      "type": "HAS_VENDOR",
+      "sourceUrl": null,
+      "confidence": null,
+      "verifierScore": null,
+      "evidenceChunkIds": []
+    },
+    {
+      "id": "edge_383",
+      "fromConceptId": "genai.ecosystem",
+      "toConceptId": "genai.ecosystem.vendors.deepseek",
+      "type": "HAS_VENDOR",
+      "sourceUrl": null,
+      "confidence": null,
+      "verifierScore": null,
+      "evidenceChunkIds": []
+    },
+    {
+      "id": "edge_384",
+      "fromConceptId": "genai.ecosystem",
+      "toConceptId": "genai.ecosystem.vendors.xai",
+      "type": "HAS_VENDOR",
+      "sourceUrl": null,
+      "confidence": null,
+      "verifierScore": null,
+      "evidenceChunkIds": []
+    },
+    {
+      "id": "edge_385",
+      "fromConceptId": "genai.ecosystem",
+      "toConceptId": "genai.ecosystem.vendors.aleph_alpha",
+      "type": "HAS_VENDOR",
+      "sourceUrl": null,
+      "confidence": null,
+      "verifierScore": null,
+      "evidenceChunkIds": []
+    },
+    {
+      "id": "edge_386",
+      "fromConceptId": "genai.ecosystem",
+      "toConceptId": "genai.ecosystem.vendors.stability_ai",
+      "type": "HAS_VENDOR",
+      "sourceUrl": null,
+      "confidence": null,
+      "verifierScore": null,
+      "evidenceChunkIds": []
+    },
+    {
+      "id": "edge_387",
+      "fromConceptId": "genai.ecosystem",
+      "toConceptId": "genai.ecosystem.vendors.hugging_face",
+      "type": "HAS_VENDOR",
+      "sourceUrl": null,
+      "confidence": null,
+      "verifierScore": null,
+      "evidenceChunkIds": []
+    },
+    {
+      "id": "edge_388",
+      "fromConceptId": "genai.ecosystem",
+      "toConceptId": "genai.ecosystem.vendors.liquid_ai",
+      "type": "HAS_VENDOR",
+      "sourceUrl": null,
+      "confidence": null,
+      "verifierScore": null,
+      "evidenceChunkIds": []
+    },
+    {
+      "id": "edge_389",
+      "fromConceptId": "genai.ecosystem.vendors.openai",
+      "toConceptId": "genai.ecosystem.families.gpt4",
+      "type": "OFFERS_MODEL",
+      "sourceUrl": null,
+      "confidence": null,
+      "verifierScore": null,
+      "evidenceChunkIds": []
+    },
+    {
+      "id": "edge_390",
+      "fromConceptId": "genai.ecosystem.vendors.openai",
+      "toConceptId": "genai.ecosystem.families.gpt4o",
+      "type": "OFFERS_MODEL",
+      "sourceUrl": null,
+      "confidence": null,
+      "verifierScore": null,
+      "evidenceChunkIds": []
+    },
+    {
+      "id": "edge_391",
+      "fromConceptId": "genai.ecosystem.vendors.openai",
+      "toConceptId": "genai.ecosystem.families.o_series",
+      "type": "OFFERS_MODEL",
+      "sourceUrl": null,
+      "confidence": null,
+      "verifierScore": null,
+      "evidenceChunkIds": []
+    },
+    {
+      "id": "edge_392",
+      "fromConceptId": "genai.ecosystem.vendors.anthropic",
+      "toConceptId": "genai.ecosystem.families.claude",
+      "type": "OFFERS_MODEL",
+      "sourceUrl": null,
+      "confidence": null,
+      "verifierScore": null,
+      "evidenceChunkIds": []
+    },
+    {
+      "id": "edge_393",
+      "fromConceptId": "genai.ecosystem.vendors.google",
+      "toConceptId": "genai.ecosystem.families.gemini",
+      "type": "OFFERS_MODEL",
+      "sourceUrl": null,
+      "confidence": null,
+      "verifierScore": null,
+      "evidenceChunkIds": []
+    },
+    {
+      "id": "edge_394",
+      "fromConceptId": "genai.ecosystem.vendors.meta",
+      "toConceptId": "genai.ecosystem.families.llama3",
+      "type": "OFFERS_MODEL",
+      "sourceUrl": null,
+      "confidence": null,
+      "verifierScore": null,
+      "evidenceChunkIds": []
+    },
+    {
+      "id": "edge_395",
+      "fromConceptId": "genai.ecosystem.vendors.mistral",
+      "toConceptId": "genai.ecosystem.families.mistral_models",
+      "type": "OFFERS_MODEL",
+      "sourceUrl": null,
+      "confidence": null,
+      "verifierScore": null,
+      "evidenceChunkIds": []
+    },
+    {
+      "id": "edge_396",
+      "fromConceptId": "genai.ecosystem.vendors.cohere",
+      "toConceptId": "genai.ecosystem.families.command_r",
+      "type": "OFFERS_MODEL",
+      "sourceUrl": null,
+      "confidence": null,
+      "verifierScore": null,
+      "evidenceChunkIds": []
+    },
+    {
+      "id": "edge_397",
+      "fromConceptId": "genai.ecosystem.vendors.microsoft",
+      "toConceptId": "genai.ecosystem.families.phi",
+      "type": "OFFERS_MODEL",
+      "sourceUrl": null,
+      "confidence": null,
+      "verifierScore": null,
+      "evidenceChunkIds": []
+    },
+    {
+      "id": "edge_398",
+      "fromConceptId": "genai.ecosystem.vendors.alibaba",
+      "toConceptId": "genai.ecosystem.families.qwen3",
+      "type": "OFFERS_MODEL",
+      "sourceUrl": null,
+      "confidence": null,
+      "verifierScore": null,
+      "evidenceChunkIds": []
+    },
+    {
+      "id": "edge_399",
+      "fromConceptId": "genai.ecosystem.vendors.baidu",
+      "toConceptId": "genai.ecosystem.families.ernie",
+      "type": "OFFERS_MODEL",
+      "sourceUrl": null,
+      "confidence": null,
+      "verifierScore": null,
+      "evidenceChunkIds": []
+    },
+    {
+      "id": "edge_400",
+      "fromConceptId": "genai.ecosystem.vendors.tencent",
+      "toConceptId": "genai.ecosystem.families.hunyuan",
+      "type": "OFFERS_MODEL",
+      "sourceUrl": null,
+      "confidence": null,
+      "verifierScore": null,
+      "evidenceChunkIds": []
+    },
+    {
+      "id": "edge_401",
+      "fromConceptId": "genai.ecosystem.vendors.deepseek",
+      "toConceptId": "genai.ecosystem.families.deepseek_v3",
+      "type": "OFFERS_MODEL",
+      "sourceUrl": null,
+      "confidence": null,
+      "verifierScore": null,
+      "evidenceChunkIds": []
+    },
+    {
+      "id": "edge_402",
+      "fromConceptId": "genai.ecosystem.vendors.liquid_ai",
+      "toConceptId": "genai.ecosystem.families.lfm",
+      "type": "OFFERS_MODEL",
+      "sourceUrl": null,
+      "confidence": null,
+      "verifierScore": null,
+      "evidenceChunkIds": []
+    },
+    {
+      "id": "edge_403",
+      "fromConceptId": "genai.ecosystem.families.gpt4o",
+      "toConceptId": "genai.ecosystem.models.gpt4o",
+      "type": "INCLUDES_MODEL",
+      "sourceUrl": null,
+      "confidence": null,
+      "verifierScore": null,
+      "evidenceChunkIds": []
+    },
+    {
+      "id": "edge_404",
+      "fromConceptId": "genai.ecosystem.families.gpt4",
+      "toConceptId": "genai.ecosystem.models.gpt4_1",
+      "type": "INCLUDES_MODEL",
+      "sourceUrl": null,
+      "confidence": null,
+      "verifierScore": null,
+      "evidenceChunkIds": []
+    },
+    {
+      "id": "edge_405",
+      "fromConceptId": "genai.ecosystem.families.o_series",
+      "toConceptId": "genai.ecosystem.models.o1",
+      "type": "INCLUDES_MODEL",
+      "sourceUrl": null,
+      "confidence": null,
+      "verifierScore": null,
+      "evidenceChunkIds": []
+    },
+    {
+      "id": "edge_406",
+      "fromConceptId": "genai.ecosystem.families.o_series",
+      "toConceptId": "genai.ecosystem.models.o3",
+      "type": "INCLUDES_MODEL",
+      "sourceUrl": null,
+      "confidence": null,
+      "verifierScore": null,
+      "evidenceChunkIds": []
+    },
+    {
+      "id": "edge_407",
+      "fromConceptId": "genai.ecosystem.families.claude",
+      "toConceptId": "genai.ecosystem.models.claude_opus",
+      "type": "INCLUDES_MODEL",
+      "sourceUrl": null,
+      "confidence": null,
+      "verifierScore": null,
+      "evidenceChunkIds": []
+    },
+    {
+      "id": "edge_408",
+      "fromConceptId": "genai.ecosystem.families.claude",
+      "toConceptId": "genai.ecosystem.models.claude_sonnet",
+      "type": "INCLUDES_MODEL",
+      "sourceUrl": null,
+      "confidence": null,
+      "verifierScore": null,
+      "evidenceChunkIds": []
+    },
+    {
+      "id": "edge_409",
+      "fromConceptId": "genai.ecosystem.families.claude",
+      "toConceptId": "genai.ecosystem.models.claude_haiku",
+      "type": "INCLUDES_MODEL",
+      "sourceUrl": null,
+      "confidence": null,
+      "verifierScore": null,
+      "evidenceChunkIds": []
+    },
+    {
+      "id": "edge_410",
+      "fromConceptId": "genai.ecosystem.families.gemini",
+      "toConceptId": "genai.ecosystem.models.gemini_2_5_pro",
+      "type": "INCLUDES_MODEL",
+      "sourceUrl": null,
+      "confidence": null,
+      "verifierScore": null,
+      "evidenceChunkIds": []
+    },
+    {
+      "id": "edge_411",
+      "fromConceptId": "genai.ecosystem.families.llama3",
+      "toConceptId": "genai.ecosystem.models.llama_3_3_70b",
+      "type": "INCLUDES_MODEL",
+      "sourceUrl": null,
+      "confidence": null,
+      "verifierScore": null,
+      "evidenceChunkIds": []
+    },
+    {
+      "id": "edge_412",
+      "fromConceptId": "genai.ecosystem.families.mistral_models",
+      "toConceptId": "genai.ecosystem.models.mistral_large_3",
+      "type": "INCLUDES_MODEL",
+      "sourceUrl": null,
+      "confidence": null,
+      "verifierScore": null,
+      "evidenceChunkIds": []
+    },
+    {
+      "id": "edge_413",
+      "fromConceptId": "genai.ecosystem.families.mistral_models",
+      "toConceptId": "genai.ecosystem.models.mixtral",
+      "type": "INCLUDES_MODEL",
+      "sourceUrl": null,
+      "confidence": null,
+      "verifierScore": null,
+      "evidenceChunkIds": []
+    },
+    {
+      "id": "edge_414",
+      "fromConceptId": "genai.ecosystem.families.command_r",
+      "toConceptId": "genai.ecosystem.models.command_r_plus",
+      "type": "INCLUDES_MODEL",
+      "sourceUrl": null,
+      "confidence": null,
+      "verifierScore": null,
+      "evidenceChunkIds": []
+    },
+    {
+      "id": "edge_415",
+      "fromConceptId": "genai.ecosystem.families.phi",
+      "toConceptId": "genai.ecosystem.models.phi_4",
+      "type": "INCLUDES_MODEL",
+      "sourceUrl": null,
+      "confidence": null,
+      "verifierScore": null,
+      "evidenceChunkIds": []
+    },
+    {
+      "id": "edge_416",
+      "fromConceptId": "genai.ecosystem.families.qwen3",
+      "toConceptId": "genai.ecosystem.models.qwen3",
+      "type": "INCLUDES_MODEL",
+      "sourceUrl": null,
+      "confidence": null,
+      "verifierScore": null,
+      "evidenceChunkIds": []
+    },
+    {
+      "id": "edge_417",
+      "fromConceptId": "genai.ecosystem.families.ernie",
+      "toConceptId": "genai.ecosystem.models.ernie_4_5",
+      "type": "INCLUDES_MODEL",
+      "sourceUrl": null,
+      "confidence": null,
+      "verifierScore": null,
+      "evidenceChunkIds": []
+    },
+    {
+      "id": "edge_418",
+      "fromConceptId": "genai.ecosystem.families.hunyuan",
+      "toConceptId": "genai.ecosystem.models.hunyuan_large",
+      "type": "INCLUDES_MODEL",
+      "sourceUrl": null,
+      "confidence": null,
+      "verifierScore": null,
+      "evidenceChunkIds": []
+    },
+    {
+      "id": "edge_419",
+      "fromConceptId": "genai.ecosystem.families.deepseek_v3",
+      "toConceptId": "genai.ecosystem.models.deepseek_v3",
+      "type": "INCLUDES_MODEL",
+      "sourceUrl": null,
+      "confidence": null,
+      "verifierScore": null,
+      "evidenceChunkIds": []
+    },
+    {
+      "id": "edge_420",
+      "fromConceptId": "genai.ecosystem.families.lfm",
+      "toConceptId": "genai.ecosystem.models.lfm2",
+      "type": "INCLUDES_MODEL",
+      "sourceUrl": null,
+      "confidence": null,
+      "verifierScore": null,
+      "evidenceChunkIds": []
+    },
+    {
+      "id": "edge_421",
+      "fromConceptId": "genai.ecosystem.models.gpt4o",
+      "toConceptId": "genai.foundations.generative_paradigms.autoregressive",
+      "type": "GENERATIVE_PARADIGM",
+      "sourceUrl": null,
+      "confidence": null,
+      "verifierScore": null,
+      "evidenceChunkIds": []
+    },
+    {
+      "id": "edge_422",
+      "fromConceptId": "genai.ecosystem.models.gpt4_1",
+      "toConceptId": "genai.foundations.generative_paradigms.autoregressive",
+      "type": "GENERATIVE_PARADIGM",
+      "sourceUrl": null,
+      "confidence": null,
+      "verifierScore": null,
+      "evidenceChunkIds": []
+    },
+    {
+      "id": "edge_423",
+      "fromConceptId": "genai.ecosystem.models.o1",
+      "toConceptId": "genai.foundations.generative_paradigms.autoregressive",
+      "type": "GENERATIVE_PARADIGM",
+      "sourceUrl": null,
+      "confidence": null,
+      "verifierScore": null,
+      "evidenceChunkIds": []
+    },
+    {
+      "id": "edge_424",
+      "fromConceptId": "genai.ecosystem.models.o3",
+      "toConceptId": "genai.foundations.generative_paradigms.autoregressive",
+      "type": "GENERATIVE_PARADIGM",
+      "sourceUrl": null,
+      "confidence": null,
+      "verifierScore": null,
+      "evidenceChunkIds": []
+    },
+    {
+      "id": "edge_425",
+      "fromConceptId": "genai.ecosystem.models.claude_opus",
+      "toConceptId": "genai.foundations.generative_paradigms.autoregressive",
+      "type": "GENERATIVE_PARADIGM",
+      "sourceUrl": null,
+      "confidence": null,
+      "verifierScore": null,
+      "evidenceChunkIds": []
+    },
+    {
+      "id": "edge_426",
+      "fromConceptId": "genai.ecosystem.models.claude_sonnet",
+      "toConceptId": "genai.foundations.generative_paradigms.autoregressive",
+      "type": "GENERATIVE_PARADIGM",
+      "sourceUrl": null,
+      "confidence": null,
+      "verifierScore": null,
+      "evidenceChunkIds": []
+    },
+    {
+      "id": "edge_427",
+      "fromConceptId": "genai.ecosystem.models.claude_haiku",
+      "toConceptId": "genai.foundations.generative_paradigms.autoregressive",
+      "type": "GENERATIVE_PARADIGM",
+      "sourceUrl": null,
+      "confidence": null,
+      "verifierScore": null,
+      "evidenceChunkIds": []
+    },
+    {
+      "id": "edge_428",
+      "fromConceptId": "genai.ecosystem.models.gemini_2_5_pro",
+      "toConceptId": "genai.foundations.generative_paradigms.autoregressive",
+      "type": "GENERATIVE_PARADIGM",
+      "sourceUrl": null,
+      "confidence": null,
+      "verifierScore": null,
+      "evidenceChunkIds": []
+    },
+    {
+      "id": "edge_429",
+      "fromConceptId": "genai.ecosystem.models.llama_3_3_70b",
+      "toConceptId": "genai.foundations.generative_paradigms.autoregressive",
+      "type": "GENERATIVE_PARADIGM",
+      "sourceUrl": null,
+      "confidence": null,
+      "verifierScore": null,
+      "evidenceChunkIds": []
+    },
+    {
+      "id": "edge_430",
+      "fromConceptId": "genai.ecosystem.models.mistral_large_3",
+      "toConceptId": "genai.foundations.generative_paradigms.autoregressive",
+      "type": "GENERATIVE_PARADIGM",
+      "sourceUrl": null,
+      "confidence": null,
+      "verifierScore": null,
+      "evidenceChunkIds": []
+    },
+    {
+      "id": "edge_431",
+      "fromConceptId": "genai.ecosystem.models.command_r_plus",
+      "toConceptId": "genai.foundations.generative_paradigms.autoregressive",
+      "type": "GENERATIVE_PARADIGM",
+      "sourceUrl": null,
+      "confidence": null,
+      "verifierScore": null,
+      "evidenceChunkIds": []
+    },
+    {
+      "id": "edge_432",
+      "fromConceptId": "genai.ecosystem.models.phi_4",
+      "toConceptId": "genai.foundations.generative_paradigms.autoregressive",
+      "type": "GENERATIVE_PARADIGM",
+      "sourceUrl": null,
+      "confidence": null,
+      "verifierScore": null,
+      "evidenceChunkIds": []
+    },
+    {
+      "id": "edge_433",
+      "fromConceptId": "genai.ecosystem.models.qwen3",
+      "toConceptId": "genai.foundations.generative_paradigms.autoregressive",
+      "type": "GENERATIVE_PARADIGM",
+      "sourceUrl": null,
+      "confidence": null,
+      "verifierScore": null,
+      "evidenceChunkIds": []
+    },
+    {
+      "id": "edge_434",
+      "fromConceptId": "genai.ecosystem.models.ernie_4_5",
+      "toConceptId": "genai.foundations.generative_paradigms.autoregressive",
+      "type": "GENERATIVE_PARADIGM",
+      "sourceUrl": null,
+      "confidence": null,
+      "verifierScore": null,
+      "evidenceChunkIds": []
+    },
+    {
+      "id": "edge_435",
+      "fromConceptId": "genai.ecosystem.models.grok",
+      "toConceptId": "genai.foundations.generative_paradigms.autoregressive",
+      "type": "GENERATIVE_PARADIGM",
+      "sourceUrl": null,
+      "confidence": null,
+      "verifierScore": null,
+      "evidenceChunkIds": []
+    },
+    {
+      "id": "edge_436",
+      "fromConceptId": "genai.ecosystem.models.mixtral",
+      "toConceptId": "genai.models.moe",
+      "type": "IS_A",
+      "sourceUrl": null,
+      "confidence": null,
+      "verifierScore": null,
+      "evidenceChunkIds": []
+    },
+    {
+      "id": "edge_437",
+      "fromConceptId": "genai.ecosystem.models.hunyuan_large",
+      "toConceptId": "genai.models.moe",
+      "type": "IS_A",
+      "sourceUrl": null,
+      "confidence": null,
+      "verifierScore": null,
+      "evidenceChunkIds": []
+    },
+    {
+      "id": "edge_438",
+      "fromConceptId": "genai.ecosystem.models.deepseek_v3",
+      "toConceptId": "genai.models.moe",
+      "type": "IS_A",
+      "sourceUrl": null,
+      "confidence": null,
+      "verifierScore": null,
+      "evidenceChunkIds": []
+    },
+    {
+      "id": "edge_439",
+      "fromConceptId": "genai.ecosystem.models.lfm2",
+      "toConceptId": "genai.models.liquid_fms",
+      "type": "IS_A",
+      "sourceUrl": null,
+      "confidence": null,
+      "verifierScore": null,
+      "evidenceChunkIds": []
+    },
+    {
+      "id": "edge_440",
+      "fromConceptId": "genai.ecosystem.models.o1",
+      "toConceptId": "genai.models.reasoning_models",
+      "type": "IS_A",
+      "sourceUrl": null,
+      "confidence": null,
+      "verifierScore": null,
+      "evidenceChunkIds": []
+    },
+    {
+      "id": "edge_441",
+      "fromConceptId": "genai.ecosystem.models.o3",
+      "toConceptId": "genai.models.reasoning_models",
+      "type": "IS_A",
+      "sourceUrl": null,
+      "confidence": null,
+      "verifierScore": null,
+      "evidenceChunkIds": []
+    },
+    {
+      "id": "edge_442",
+      "fromConceptId": "genai.ecosystem.vendors.xai",
+      "toConceptId": "genai.ecosystem.models.grok",
+      "type": "OFFERS_MODEL",
+      "sourceUrl": null,
+      "confidence": null,
+      "verifierScore": null,
+      "evidenceChunkIds": []
+    },
+    {
+      "id": "edge_443",
+      "fromConceptId": "genai.ecosystem.vendors.openai",
+      "toConceptId": "genai.ecosystem.platforms.openai_api",
+      "type": "HAS_PLATFORM",
+      "sourceUrl": null,
+      "confidence": null,
+      "verifierScore": null,
+      "evidenceChunkIds": []
+    },
+    {
+      "id": "edge_444",
+      "fromConceptId": "genai.ecosystem.vendors.microsoft",
+      "toConceptId": "genai.ecosystem.platforms.azure_openai",
+      "type": "HAS_PLATFORM",
+      "sourceUrl": null,
+      "confidence": null,
+      "verifierScore": null,
+      "evidenceChunkIds": []
+    },
+    {
+      "id": "edge_445",
+      "fromConceptId": "genai.ecosystem.vendors.anthropic",
+      "toConceptId": "genai.ecosystem.platforms.anthropic_api",
+      "type": "HAS_PLATFORM",
+      "sourceUrl": null,
+      "confidence": null,
+      "verifierScore": null,
+      "evidenceChunkIds": []
+    },
+    {
+      "id": "edge_446",
+      "fromConceptId": "genai.ecosystem.vendors.google",
+      "toConceptId": "genai.ecosystem.platforms.vertex_ai",
+      "type": "HAS_PLATFORM",
+      "sourceUrl": null,
+      "confidence": null,
+      "verifierScore": null,
+      "evidenceChunkIds": []
+    },
+    {
+      "id": "edge_447",
+      "fromConceptId": "genai.ecosystem.vendors.google",
+      "toConceptId": "genai.ecosystem.platforms.gemini_api",
+      "type": "HAS_PLATFORM",
+      "sourceUrl": null,
+      "confidence": null,
+      "verifierScore": null,
+      "evidenceChunkIds": []
+    },
+    {
+      "id": "edge_448",
+      "fromConceptId": "genai.ecosystem.vendors.hugging_face",
+      "toConceptId": "genai.ecosystem.platforms.hf_inference",
+      "type": "HAS_PLATFORM",
+      "sourceUrl": null,
+      "confidence": null,
+      "verifierScore": null,
+      "evidenceChunkIds": []
+    },
+    {
+      "id": "edge_449",
+      "fromConceptId": "genai.ecosystem.vendors.hugging_face",
+      "toConceptId": "genai.ecosystem.platforms.hf_tgi",
+      "type": "HAS_PLATFORM",
+      "sourceUrl": null,
+      "confidence": null,
+      "verifierScore": null,
+      "evidenceChunkIds": []
+    },
+    {
+      "id": "edge_450",
+      "fromConceptId": "genai.ecosystem.vendors.deepseek",
+      "toConceptId": "genai.ecosystem.platforms.deepseek_api",
+      "type": "HAS_PLATFORM",
+      "sourceUrl": null,
+      "confidence": null,
+      "verifierScore": null,
+      "evidenceChunkIds": []
+    },
+    {
+      "id": "edge_451",
+      "fromConceptId": "genai.ecosystem.platforms.azure_openai",
+      "toConceptId": "genai.systems_inference.deployment.cloud",
+      "type": "IS_A",
+      "sourceUrl": null,
+      "confidence": null,
+      "verifierScore": null,
+      "evidenceChunkIds": []
+    },
+    {
+      "id": "edge_452",
+      "fromConceptId": "genai.ecosystem.platforms.hf_tgi",
+      "toConceptId": "genai.systems_inference.optimization.continuous_batching",
+      "type": "USED_IN",
+      "sourceUrl": null,
+      "confidence": null,
+      "verifierScore": null,
+      "evidenceChunkIds": []
+    },
+    {
+      "id": "edge_453",
+      "fromConceptId": "genai.ecosystem.repos.vllm",
+      "toConceptId": "genai.systems_inference.kvcache.pagedattention",
+      "type": "IMPLEMENTS",
+      "sourceUrl": null,
+      "confidence": null,
+      "verifierScore": null,
+      "evidenceChunkIds": []
+    },
+    {
+      "id": "edge_454",
+      "fromConceptId": "genai.ecosystem.repos.vllm",
+      "toConceptId": "genai.systems_inference.optimization.continuous_batching",
+      "type": "IMPLEMENTS",
+      "sourceUrl": null,
+      "confidence": null,
+      "verifierScore": null,
+      "evidenceChunkIds": []
+    },
+    {
+      "id": "edge_455",
+      "fromConceptId": "genai.ecosystem.repos.transformers",
+      "toConceptId": "genai.models.transformer",
+      "type": "IMPLEMENTS",
+      "sourceUrl": null,
+      "confidence": null,
+      "verifierScore": null,
+      "evidenceChunkIds": []
+    },
+    {
+      "id": "edge_456",
+      "fromConceptId": "genai.ecosystem.repos.llama_cpp",
+      "toConceptId": "genai.systems_inference.optimization.quantization",
+      "type": "IMPLEMENTS",
+      "sourceUrl": null,
+      "confidence": null,
+      "verifierScore": null,
+      "evidenceChunkIds": []
+    },
+    {
+      "id": "edge_457",
+      "fromConceptId": "genai.ecosystem.repos.langchain",
+      "toConceptId": "genai.agents_tools.architectures.react",
+      "type": "IMPLEMENTS",
+      "sourceUrl": null,
+      "confidence": null,
+      "verifierScore": null,
+      "evidenceChunkIds": []
+    },
+    {
+      "id": "edge_458",
+      "fromConceptId": "genai.ecosystem.repos.langchain",
+      "toConceptId": "genai.knowledge_memory.rag",
+      "type": "IMPLEMENTS",
+      "sourceUrl": null,
+      "confidence": null,
+      "verifierScore": null,
+      "evidenceChunkIds": []
+    },
+    {
+      "id": "edge_459",
+      "fromConceptId": "genai.ecosystem.repos.llamaindex",
+      "toConceptId": "genai.knowledge_memory.rag",
+      "type": "IMPLEMENTS",
+      "sourceUrl": null,
+      "confidence": null,
+      "verifierScore": null,
+      "evidenceChunkIds": []
+    },
+    {
+      "id": "edge_460",
+      "fromConceptId": "genai.ecosystem.repos.llamaindex",
+      "toConceptId": "genai.knowledge_memory.rag.graphrag",
+      "type": "IMPLEMENTS",
+      "sourceUrl": null,
+      "confidence": null,
+      "verifierScore": null,
+      "evidenceChunkIds": []
+    },
+    {
+      "id": "edge_461",
+      "fromConceptId": "genai.ecosystem.repos.tgi",
+      "toConceptId": "genai.systems_inference.optimization.continuous_batching",
+      "type": "IMPLEMENTS",
+      "sourceUrl": null,
+      "confidence": null,
+      "verifierScore": null,
+      "evidenceChunkIds": []
+    },
+    {
+      "id": "edge_462",
+      "fromConceptId": "genai.ecosystem.repos.vllm",
+      "toConceptId": "genai.systems_inference.serving.vllm",
+      "type": "IS_A",
+      "sourceUrl": null,
+      "confidence": null,
+      "verifierScore": null,
+      "evidenceChunkIds": []
+    },
+    {
+      "id": "edge_463",
+      "fromConceptId": "genai.ecosystem.repos.tgi",
+      "toConceptId": "genai.ecosystem.platforms.hf_tgi",
+      "type": "IS_A",
+      "sourceUrl": null,
+      "confidence": null,
+      "verifierScore": null,
+      "evidenceChunkIds": []
+    },
+    {
+      "id": "edge_464",
+      "fromConceptId": "genai.ecosystem.families.llama3",
+      "toConceptId": "genai.ecosystem.licenses.llama3",
+      "type": "GOVERNED_BY",
+      "sourceUrl": null,
+      "confidence": null,
+      "verifierScore": null,
+      "evidenceChunkIds": []
+    },
+    {
+      "id": "edge_465",
+      "fromConceptId": "genai.ecosystem.families.gpt4",
+      "toConceptId": "genai.ecosystem.licenses.proprietary",
+      "type": "GOVERNED_BY",
+      "sourceUrl": null,
+      "confidence": null,
+      "verifierScore": null,
+      "evidenceChunkIds": []
+    },
+    {
+      "id": "edge_466",
+      "fromConceptId": "genai.ecosystem.families.gpt4o",
+      "toConceptId": "genai.ecosystem.licenses.proprietary",
+      "type": "GOVERNED_BY",
+      "sourceUrl": null,
+      "confidence": null,
+      "verifierScore": null,
+      "evidenceChunkIds": []
+    },
+    {
+      "id": "edge_467",
+      "fromConceptId": "genai.ecosystem.families.o_series",
+      "toConceptId": "genai.ecosystem.licenses.proprietary",
+      "type": "GOVERNED_BY",
+      "sourceUrl": null,
+      "confidence": null,
+      "verifierScore": null,
+      "evidenceChunkIds": []
+    },
+    {
+      "id": "edge_468",
+      "fromConceptId": "genai.ecosystem.families.claude",
+      "toConceptId": "genai.ecosystem.licenses.proprietary",
+      "type": "GOVERNED_BY",
+      "sourceUrl": null,
+      "confidence": null,
+      "verifierScore": null,
+      "evidenceChunkIds": []
+    },
+    {
+      "id": "edge_469",
+      "fromConceptId": "genai.ecosystem.families.gemini",
+      "toConceptId": "genai.ecosystem.licenses.proprietary",
+      "type": "GOVERNED_BY",
+      "sourceUrl": null,
+      "confidence": null,
+      "verifierScore": null,
+      "evidenceChunkIds": []
+    },
+    {
+      "id": "edge_470",
+      "fromConceptId": "genai.ecosystem.families.mistral_models",
+      "toConceptId": "genai.ecosystem.licenses.apache2",
+      "type": "GOVERNED_BY",
+      "sourceUrl": null,
+      "confidence": null,
+      "verifierScore": null,
+      "evidenceChunkIds": []
+    },
+    {
+      "id": "edge_471",
+      "fromConceptId": "genai.ecosystem.families.qwen3",
+      "toConceptId": "genai.ecosystem.licenses.apache2",
+      "type": "GOVERNED_BY",
+      "sourceUrl": null,
+      "confidence": null,
+      "verifierScore": null,
+      "evidenceChunkIds": []
+    },
+    {
+      "id": "edge_472",
+      "fromConceptId": "genai.ecosystem.families.deepseek_v3",
+      "toConceptId": "genai.ecosystem.licenses.mit",
+      "type": "GOVERNED_BY",
+      "sourceUrl": null,
+      "confidence": null,
+      "verifierScore": null,
+      "evidenceChunkIds": []
+    },
+    {
+      "id": "edge_473",
+      "fromConceptId": "genai.ecosystem.repos.transformers",
+      "toConceptId": "genai.ecosystem.licenses.apache2",
+      "type": "GOVERNED_BY",
+      "sourceUrl": null,
+      "confidence": null,
+      "verifierScore": null,
+      "evidenceChunkIds": []
+    },
+    {
+      "id": "edge_474",
+      "fromConceptId": "genai.ecosystem.repos.vllm",
+      "toConceptId": "genai.ecosystem.licenses.apache2",
+      "type": "GOVERNED_BY",
+      "sourceUrl": null,
+      "confidence": null,
+      "verifierScore": null,
+      "evidenceChunkIds": []
+    },
+    {
+      "id": "edge_475",
+      "fromConceptId": "genai.ecosystem.repos.langchain",
+      "toConceptId": "genai.ecosystem.licenses.mit",
+      "type": "GOVERNED_BY",
+      "sourceUrl": null,
+      "confidence": null,
+      "verifierScore": null,
+      "evidenceChunkIds": []
+    },
+    {
+      "id": "edge_476",
+      "fromConceptId": "genai.ecosystem.repos.llamaindex",
+      "toConceptId": "genai.ecosystem.licenses.mit",
+      "type": "GOVERNED_BY",
+      "sourceUrl": null,
+      "confidence": null,
+      "verifierScore": null,
+      "evidenceChunkIds": []
+    },
+    {
+      "id": "edge_477",
+      "fromConceptId": "genai",
+      "toConceptId": "genai.research",
+      "type": "HAS_MAJOR_AREA",
+      "sourceUrl": null,
+      "confidence": null,
+      "verifierScore": null,
+      "evidenceChunkIds": []
+    },
+    {
+      "id": "edge_478",
+      "fromConceptId": "genai.research.papers.transformer",
+      "toConceptId": "genai.models.transformer",
+      "type": "INTRODUCED",
+      "sourceUrl": null,
+      "confidence": null,
+      "verifierScore": null,
+      "evidenceChunkIds": []
+    },
+    {
+      "id": "edge_479",
+      "fromConceptId": "genai.research.papers.bert",
+      "toConceptId": "genai.models.transformer.encoder_only",
+      "type": "INTRODUCED",
+      "sourceUrl": null,
+      "confidence": null,
+      "verifierScore": null,
+      "evidenceChunkIds": []
+    },
+    {
+      "id": "edge_480",
+      "fromConceptId": "genai.research.papers.gpt2",
+      "toConceptId": "genai.models.transformer.decoder_only",
+      "type": "INTRODUCED",
+      "sourceUrl": null,
+      "confidence": null,
+      "verifierScore": null,
+      "evidenceChunkIds": []
+    },
+    {
+      "id": "edge_481",
+      "fromConceptId": "genai.research.papers.gpt3",
+      "toConceptId": "genai.foundations.scaling.scaling_laws",
+      "type": "INTRODUCED",
+      "sourceUrl": null,
+      "confidence": null,
+      "verifierScore": null,
+      "evidenceChunkIds": []
+    },
+    {
+      "id": "edge_482",
+      "fromConceptId": "genai.research.papers.rag",
+      "toConceptId": "genai.knowledge_memory.rag",
+      "type": "INTRODUCED",
+      "sourceUrl": null,
+      "confidence": null,
+      "verifierScore": null,
+      "evidenceChunkIds": []
+    },
+    {
+      "id": "edge_483",
+      "fromConceptId": "genai.research.papers.realm",
+      "toConceptId": "genai.knowledge_memory.rag",
+      "type": "INTRODUCED",
+      "sourceUrl": null,
+      "confidence": null,
+      "verifierScore": null,
+      "evidenceChunkIds": []
+    },
+    {
+      "id": "edge_484",
+      "fromConceptId": "genai.research.papers.scaling_laws",
+      "toConceptId": "genai.foundations.scaling.scaling_laws",
+      "type": "INTRODUCED",
+      "sourceUrl": null,
+      "confidence": null,
+      "verifierScore": null,
+      "evidenceChunkIds": []
+    },
+    {
+      "id": "edge_485",
+      "fromConceptId": "genai.research.papers.s4",
+      "toConceptId": "genai.models.ssm.s4",
+      "type": "INTRODUCED",
+      "sourceUrl": null,
+      "confidence": null,
+      "verifierScore": null,
+      "evidenceChunkIds": []
+    },
+    {
+      "id": "edge_486",
+      "fromConceptId": "genai.research.papers.switch_transformer",
+      "toConceptId": "genai.models.moe.switch_transformer",
+      "type": "INTRODUCED",
+      "sourceUrl": null,
+      "confidence": null,
+      "verifierScore": null,
+      "evidenceChunkIds": []
+    },
+    {
+      "id": "edge_487",
+      "fromConceptId": "genai.research.papers.rope",
+      "toConceptId": "genai.models.transformer.positional_encoding.rope",
+      "type": "INTRODUCED",
+      "sourceUrl": null,
+      "confidence": null,
+      "verifierScore": null,
+      "evidenceChunkIds": []
+    },
+    {
+      "id": "edge_488",
+      "fromConceptId": "genai.research.papers.alibi",
+      "toConceptId": "genai.models.transformer.positional_encoding.alibi",
+      "type": "INTRODUCED",
+      "sourceUrl": null,
+      "confidence": null,
+      "verifierScore": null,
+      "evidenceChunkIds": []
+    },
+    {
+      "id": "edge_489",
+      "fromConceptId": "genai.research.papers.d3pm",
+      "toConceptId": "genai.models.diffusion_lm.discrete_diffusion",
+      "type": "INTRODUCED",
+      "sourceUrl": null,
+      "confidence": null,
+      "verifierScore": null,
+      "evidenceChunkIds": []
+    },
+    {
+      "id": "edge_490",
+      "fromConceptId": "genai.research.papers.glam",
+      "toConceptId": "genai.models.moe",
+      "type": "INTRODUCED",
+      "sourceUrl": null,
+      "confidence": null,
+      "verifierScore": null,
+      "evidenceChunkIds": []
+    },
+    {
+      "id": "edge_491",
+      "fromConceptId": "genai.research.papers.chinchilla",
+      "toConceptId": "genai.foundations.scaling.data_quality",
+      "type": "INTRODUCED",
+      "sourceUrl": null,
+      "confidence": null,
+      "verifierScore": null,
+      "evidenceChunkIds": []
+    },
+    {
+      "id": "edge_492",
+      "fromConceptId": "genai.research.papers.cot",
+      "toConceptId": "genai.foundations.problem_families.reasoning",
+      "type": "INTRODUCED",
+      "sourceUrl": null,
+      "confidence": null,
+      "verifierScore": null,
+      "evidenceChunkIds": []
+    },
+    {
+      "id": "edge_493",
+      "fromConceptId": "genai.research.papers.self_consistency",
+      "toConceptId": "genai.models.reasoning_models.tts.best_of_n",
+      "type": "INTRODUCED",
+      "sourceUrl": null,
+      "confidence": null,
+      "verifierScore": null,
+      "evidenceChunkIds": []
+    },
+    {
+      "id": "edge_494",
+      "fromConceptId": "genai.research.papers.instructgpt",
+      "toConceptId": "genai.training_alignment.rlft.rlhf",
+      "type": "INTRODUCED",
+      "sourceUrl": null,
+      "confidence": null,
+      "verifierScore": null,
+      "evidenceChunkIds": []
+    },
+    {
+      "id": "edge_495",
+      "fromConceptId": "genai.research.papers.constitutional_ai",
+      "toConceptId": "genai.training_alignment.rlft.constitutional_ai",
+      "type": "INTRODUCED",
+      "sourceUrl": null,
+      "confidence": null,
+      "verifierScore": null,
+      "evidenceChunkIds": []
+    },
+    {
+      "id": "edge_496",
+      "fromConceptId": "genai.research.papers.flash_attention",
+      "toConceptId": "genai.systems_inference.attention.flashattention",
+      "type": "INTRODUCED",
+      "sourceUrl": null,
+      "confidence": null,
+      "verifierScore": null,
+      "evidenceChunkIds": []
+    },
+    {
+      "id": "edge_497",
+      "fromConceptId": "genai.research.papers.diffusion_lm",
+      "toConceptId": "genai.models.diffusion_lm",
+      "type": "INTRODUCED",
+      "sourceUrl": null,
+      "confidence": null,
+      "verifierScore": null,
+      "evidenceChunkIds": []
+    },
+    {
+      "id": "edge_498",
+      "fromConceptId": "genai.research.papers.toolformer",
+      "toConceptId": "genai.agents_tools.architectures.tool_augmented",
+      "type": "INTRODUCED",
+      "sourceUrl": null,
+      "confidence": null,
+      "verifierScore": null,
+      "evidenceChunkIds": []
+    },
+    {
+      "id": "edge_499",
+      "fromConceptId": "genai.research.papers.react",
+      "toConceptId": "genai.agents_tools.architectures.react",
+      "type": "INTRODUCED",
+      "sourceUrl": null,
+      "confidence": null,
+      "verifierScore": null,
+      "evidenceChunkIds": []
+    },
+    {
+      "id": "edge_500",
+      "fromConceptId": "genai.research.papers.tree_of_thoughts",
+      "toConceptId": "genai.models.reasoning_models.tts.tree_search",
+      "type": "INTRODUCED",
+      "sourceUrl": null,
+      "confidence": null,
+      "verifierScore": null,
+      "evidenceChunkIds": []
+    },
+    {
+      "id": "edge_501",
+      "fromConceptId": "genai.research.papers.qlora",
+      "toConceptId": "genai.training_alignment.finetuning.lora",
+      "type": "INTRODUCED",
+      "sourceUrl": null,
+      "confidence": null,
+      "verifierScore": null,
+      "evidenceChunkIds": []
+    },
+    {
+      "id": "edge_502",
+      "fromConceptId": "genai.research.papers.gptq",
+      "toConceptId": "genai.systems_inference.optimization.quantization",
+      "type": "INTRODUCED",
+      "sourceUrl": null,
+      "confidence": null,
+      "verifierScore": null,
+      "evidenceChunkIds": []
+    },
+    {
+      "id": "edge_503",
+      "fromConceptId": "genai.research.papers.awq",
+      "toConceptId": "genai.systems_inference.optimization.quantization",
+      "type": "INTRODUCED",
+      "sourceUrl": null,
+      "confidence": null,
+      "verifierScore": null,
+      "evidenceChunkIds": []
+    },
+    {
+      "id": "edge_504",
+      "fromConceptId": "genai.research.papers.vllm",
+      "toConceptId": "genai.systems_inference.kvcache.pagedattention",
+      "type": "INTRODUCED",
+      "sourceUrl": null,
+      "confidence": null,
+      "verifierScore": null,
+      "evidenceChunkIds": []
+    },
+    {
+      "id": "edge_505",
+      "fromConceptId": "genai.research.papers.mamba",
+      "toConceptId": "genai.models.ssm.mamba",
+      "type": "INTRODUCED",
+      "sourceUrl": null,
+      "confidence": null,
+      "verifierScore": null,
+      "evidenceChunkIds": []
+    },
+    {
+      "id": "edge_506",
+      "fromConceptId": "genai.research.papers.dpo",
+      "toConceptId": "genai.training_alignment.rlft.dpo",
+      "type": "INTRODUCED",
+      "sourceUrl": null,
+      "confidence": null,
+      "verifierScore": null,
+      "evidenceChunkIds": []
+    },
+    {
+      "id": "edge_507",
+      "fromConceptId": "genai.research.papers.retro",
+      "toConceptId": "genai.knowledge_memory.rag",
+      "type": "INTRODUCED",
+      "sourceUrl": null,
+      "confidence": null,
+      "verifierScore": null,
+      "evidenceChunkIds": []
+    },
+    {
+      "id": "edge_508",
+      "fromConceptId": "genai.research.papers.atlas",
+      "toConceptId": "genai.knowledge_memory.rag",
+      "type": "INTRODUCED",
+      "sourceUrl": null,
+      "confidence": null,
+      "verifierScore": null,
+      "evidenceChunkIds": []
+    },
+    {
+      "id": "edge_509",
+      "fromConceptId": "genai.research.papers.bpe",
+      "toConceptId": "genai.foundations.representation.tokenization",
+      "type": "INTRODUCED",
+      "sourceUrl": null,
+      "confidence": null,
+      "verifierScore": null,
+      "evidenceChunkIds": []
+    },
+    {
+      "id": "edge_510",
+      "fromConceptId": "genai.research.papers.sentencepiece",
+      "toConceptId": "genai.foundations.representation.tokenization",
+      "type": "INTRODUCED",
+      "sourceUrl": null,
+      "confidence": null,
+      "verifierScore": null,
+      "evidenceChunkIds": []
+    },
+    {
+      "id": "edge_511",
+      "fromConceptId": "genai.research.papers.t5",
+      "toConceptId": "genai.models.transformer.encoder_decoder",
+      "type": "INTRODUCED",
+      "sourceUrl": null,
+      "confidence": null,
+      "verifierScore": null,
+      "evidenceChunkIds": []
+    },
+    {
+      "id": "edge_512",
+      "fromConceptId": "genai.research",
+      "toConceptId": "genai.research.papers.transformer",
+      "type": "PART_OF",
+      "sourceUrl": null,
+      "confidence": null,
+      "verifierScore": null,
+      "evidenceChunkIds": []
+    },
+    {
+      "id": "edge_513",
+      "fromConceptId": "genai.research",
+      "toConceptId": "genai.research.papers.bert",
+      "type": "PART_OF",
+      "sourceUrl": null,
+      "confidence": null,
+      "verifierScore": null,
+      "evidenceChunkIds": []
+    },
+    {
+      "id": "edge_514",
+      "fromConceptId": "genai.research",
+      "toConceptId": "genai.research.papers.t5",
+      "type": "PART_OF",
+      "sourceUrl": null,
+      "confidence": null,
+      "verifierScore": null,
+      "evidenceChunkIds": []
+    },
+    {
+      "id": "edge_515",
+      "fromConceptId": "genai.research",
+      "toConceptId": "genai.research.papers.gpt2",
+      "type": "PART_OF",
+      "sourceUrl": null,
+      "confidence": null,
+      "verifierScore": null,
+      "evidenceChunkIds": []
+    },
+    {
+      "id": "edge_516",
+      "fromConceptId": "genai.research",
+      "toConceptId": "genai.research.papers.gpt3",
+      "type": "PART_OF",
+      "sourceUrl": null,
+      "confidence": null,
+      "verifierScore": null,
+      "evidenceChunkIds": []
+    },
+    {
+      "id": "edge_517",
+      "fromConceptId": "genai.research",
+      "toConceptId": "genai.research.papers.rag",
+      "type": "PART_OF",
+      "sourceUrl": null,
+      "confidence": null,
+      "verifierScore": null,
+      "evidenceChunkIds": []
+    },
+    {
+      "id": "edge_518",
+      "fromConceptId": "genai.research",
+      "toConceptId": "genai.research.papers.realm",
+      "type": "PART_OF",
+      "sourceUrl": null,
+      "confidence": null,
+      "verifierScore": null,
+      "evidenceChunkIds": []
+    },
+    {
+      "id": "edge_519",
+      "fromConceptId": "genai.research",
+      "toConceptId": "genai.research.papers.scaling_laws",
+      "type": "PART_OF",
+      "sourceUrl": null,
+      "confidence": null,
+      "verifierScore": null,
+      "evidenceChunkIds": []
+    },
+    {
+      "id": "edge_520",
+      "fromConceptId": "genai.research",
+      "toConceptId": "genai.research.papers.mmlu",
+      "type": "PART_OF",
+      "sourceUrl": null,
+      "confidence": null,
+      "verifierScore": null,
+      "evidenceChunkIds": []
+    },
+    {
+      "id": "edge_521",
+      "fromConceptId": "genai.research",
+      "toConceptId": "genai.research.papers.s4",
+      "type": "PART_OF",
+      "sourceUrl": null,
+      "confidence": null,
+      "verifierScore": null,
+      "evidenceChunkIds": []
+    },
+    {
+      "id": "edge_522",
+      "fromConceptId": "genai.research",
+      "toConceptId": "genai.research.papers.switch_transformer",
+      "type": "PART_OF",
+      "sourceUrl": null,
+      "confidence": null,
+      "verifierScore": null,
+      "evidenceChunkIds": []
+    },
+    {
+      "id": "edge_523",
+      "fromConceptId": "genai.research",
+      "toConceptId": "genai.research.papers.rope",
+      "type": "PART_OF",
+      "sourceUrl": null,
+      "confidence": null,
+      "verifierScore": null,
+      "evidenceChunkIds": []
+    },
+    {
+      "id": "edge_524",
+      "fromConceptId": "genai.research",
+      "toConceptId": "genai.research.papers.alibi",
+      "type": "PART_OF",
+      "sourceUrl": null,
+      "confidence": null,
+      "verifierScore": null,
+      "evidenceChunkIds": []
+    },
+    {
+      "id": "edge_525",
+      "fromConceptId": "genai.research",
+      "toConceptId": "genai.research.papers.d3pm",
+      "type": "PART_OF",
+      "sourceUrl": null,
+      "confidence": null,
+      "verifierScore": null,
+      "evidenceChunkIds": []
+    },
+    {
+      "id": "edge_526",
+      "fromConceptId": "genai.research",
+      "toConceptId": "genai.research.papers.glam",
+      "type": "PART_OF",
+      "sourceUrl": null,
+      "confidence": null,
+      "verifierScore": null,
+      "evidenceChunkIds": []
+    },
+    {
+      "id": "edge_527",
+      "fromConceptId": "genai.research",
+      "toConceptId": "genai.research.papers.chinchilla",
+      "type": "PART_OF",
+      "sourceUrl": null,
+      "confidence": null,
+      "verifierScore": null,
+      "evidenceChunkIds": []
+    },
+    {
+      "id": "edge_528",
+      "fromConceptId": "genai.research",
+      "toConceptId": "genai.research.papers.cot",
+      "type": "PART_OF",
+      "sourceUrl": null,
+      "confidence": null,
+      "verifierScore": null,
+      "evidenceChunkIds": []
+    },
+    {
+      "id": "edge_529",
+      "fromConceptId": "genai.research",
+      "toConceptId": "genai.research.papers.self_consistency",
+      "type": "PART_OF",
+      "sourceUrl": null,
+      "confidence": null,
+      "verifierScore": null,
+      "evidenceChunkIds": []
+    },
+    {
+      "id": "edge_530",
+      "fromConceptId": "genai.research",
+      "toConceptId": "genai.research.papers.instructgpt",
+      "type": "PART_OF",
+      "sourceUrl": null,
+      "confidence": null,
+      "verifierScore": null,
+      "evidenceChunkIds": []
+    },
+    {
+      "id": "edge_531",
+      "fromConceptId": "genai.research",
+      "toConceptId": "genai.research.papers.constitutional_ai",
+      "type": "PART_OF",
+      "sourceUrl": null,
+      "confidence": null,
+      "verifierScore": null,
+      "evidenceChunkIds": []
+    },
+    {
+      "id": "edge_532",
+      "fromConceptId": "genai.research",
+      "toConceptId": "genai.research.papers.flash_attention",
+      "type": "PART_OF",
+      "sourceUrl": null,
+      "confidence": null,
+      "verifierScore": null,
+      "evidenceChunkIds": []
+    },
+    {
+      "id": "edge_533",
+      "fromConceptId": "genai.research",
+      "toConceptId": "genai.research.papers.diffusion_lm",
+      "type": "PART_OF",
+      "sourceUrl": null,
+      "confidence": null,
+      "verifierScore": null,
+      "evidenceChunkIds": []
+    },
+    {
+      "id": "edge_534",
+      "fromConceptId": "genai.research",
+      "toConceptId": "genai.research.papers.toolformer",
+      "type": "PART_OF",
+      "sourceUrl": null,
+      "confidence": null,
+      "verifierScore": null,
+      "evidenceChunkIds": []
+    },
+    {
+      "id": "edge_535",
+      "fromConceptId": "genai.research",
+      "toConceptId": "genai.research.papers.react",
+      "type": "PART_OF",
+      "sourceUrl": null,
+      "confidence": null,
+      "verifierScore": null,
+      "evidenceChunkIds": []
+    },
+    {
+      "id": "edge_536",
+      "fromConceptId": "genai.research",
+      "toConceptId": "genai.research.papers.tree_of_thoughts",
+      "type": "PART_OF",
+      "sourceUrl": null,
+      "confidence": null,
+      "verifierScore": null,
+      "evidenceChunkIds": []
+    },
+    {
+      "id": "edge_537",
+      "fromConceptId": "genai.research",
+      "toConceptId": "genai.research.papers.qlora",
+      "type": "PART_OF",
+      "sourceUrl": null,
+      "confidence": null,
+      "verifierScore": null,
+      "evidenceChunkIds": []
+    },
+    {
+      "id": "edge_538",
+      "fromConceptId": "genai.research",
+      "toConceptId": "genai.research.papers.gptq",
+      "type": "PART_OF",
+      "sourceUrl": null,
+      "confidence": null,
+      "verifierScore": null,
+      "evidenceChunkIds": []
+    },
+    {
+      "id": "edge_539",
+      "fromConceptId": "genai.research",
+      "toConceptId": "genai.research.papers.awq",
+      "type": "PART_OF",
+      "sourceUrl": null,
+      "confidence": null,
+      "verifierScore": null,
+      "evidenceChunkIds": []
+    },
+    {
+      "id": "edge_540",
+      "fromConceptId": "genai.research",
+      "toConceptId": "genai.research.papers.vllm",
+      "type": "PART_OF",
+      "sourceUrl": null,
+      "confidence": null,
+      "verifierScore": null,
+      "evidenceChunkIds": []
+    },
+    {
+      "id": "edge_541",
+      "fromConceptId": "genai.research",
+      "toConceptId": "genai.research.papers.retnet",
+      "type": "PART_OF",
+      "sourceUrl": null,
+      "confidence": null,
+      "verifierScore": null,
+      "evidenceChunkIds": []
+    },
+    {
+      "id": "edge_542",
+      "fromConceptId": "genai.research",
+      "toConceptId": "genai.research.papers.hyena",
+      "type": "PART_OF",
+      "sourceUrl": null,
+      "confidence": null,
+      "verifierScore": null,
+      "evidenceChunkIds": []
+    },
+    {
+      "id": "edge_543",
+      "fromConceptId": "genai.research",
+      "toConceptId": "genai.research.papers.mamba",
+      "type": "PART_OF",
+      "sourceUrl": null,
+      "confidence": null,
+      "verifierScore": null,
+      "evidenceChunkIds": []
+    },
+    {
+      "id": "edge_544",
+      "fromConceptId": "genai.research",
+      "toConceptId": "genai.research.papers.dpo",
+      "type": "PART_OF",
+      "sourceUrl": null,
+      "confidence": null,
+      "verifierScore": null,
+      "evidenceChunkIds": []
+    },
+    {
+      "id": "edge_545",
+      "fromConceptId": "genai.research",
+      "toConceptId": "genai.research.papers.mt_bench",
+      "type": "PART_OF",
+      "sourceUrl": null,
+      "confidence": null,
+      "verifierScore": null,
+      "evidenceChunkIds": []
+    },
+    {
+      "id": "edge_546",
+      "fromConceptId": "genai.research",
+      "toConceptId": "genai.research.papers.retro",
+      "type": "PART_OF",
+      "sourceUrl": null,
+      "confidence": null,
+      "verifierScore": null,
+      "evidenceChunkIds": []
+    },
+    {
+      "id": "edge_547",
+      "fromConceptId": "genai.research",
+      "toConceptId": "genai.research.papers.atlas",
+      "type": "PART_OF",
+      "sourceUrl": null,
+      "confidence": null,
+      "verifierScore": null,
+      "evidenceChunkIds": []
+    },
+    {
+      "id": "edge_548",
+      "fromConceptId": "genai.research",
+      "toConceptId": "genai.research.papers.bpe",
+      "type": "PART_OF",
+      "sourceUrl": null,
+      "confidence": null,
+      "verifierScore": null,
+      "evidenceChunkIds": []
+    },
+    {
+      "id": "edge_549",
+      "fromConceptId": "genai.research",
+      "toConceptId": "genai.research.papers.sentencepiece",
+      "type": "PART_OF",
+      "sourceUrl": null,
+      "confidence": null,
+      "verifierScore": null,
+      "evidenceChunkIds": []
+    },
+    {
+      "id": "edge_550",
+      "fromConceptId": "genai.research",
+      "toConceptId": "genai.research.papers.chatbot_arena",
+      "type": "PART_OF",
+      "sourceUrl": null,
+      "confidence": null,
+      "verifierScore": null,
+      "evidenceChunkIds": []
+    },
+    {
+      "id": "edge_551",
+      "fromConceptId": "genai.llmops.evals",
+      "toConceptId": "genai.llmops.evals.benchmarks.helm",
+      "type": "PART_OF",
+      "sourceUrl": null,
+      "confidence": null,
+      "verifierScore": null,
+      "evidenceChunkIds": []
+    },
+    {
+      "id": "edge_552",
+      "fromConceptId": "genai.llmops.evals",
+      "toConceptId": "genai.llmops.evals.benchmarks.mt_bench",
+      "type": "PART_OF",
+      "sourceUrl": null,
+      "confidence": null,
+      "verifierScore": null,
+      "evidenceChunkIds": []
+    },
+    {
+      "id": "edge_553",
+      "fromConceptId": "genai.llmops.evals",
+      "toConceptId": "genai.llmops.evals.benchmarks.chatbot_arena",
+      "type": "PART_OF",
+      "sourceUrl": null,
+      "confidence": null,
+      "verifierScore": null,
+      "evidenceChunkIds": []
+    },
+    {
+      "id": "edge_554",
+      "fromConceptId": "genai.llmops.evals",
+      "toConceptId": "genai.llmops.evals.benchmarks.mmlu",
+      "type": "PART_OF",
+      "sourceUrl": null,
+      "confidence": null,
+      "verifierScore": null,
+      "evidenceChunkIds": []
+    },
+    {
+      "id": "edge_555",
+      "fromConceptId": "genai.research.papers.mmlu",
+      "toConceptId": "genai.llmops.evals.benchmarks.mmlu",
+      "type": "INTRODUCED",
+      "sourceUrl": null,
+      "confidence": null,
+      "verifierScore": null,
+      "evidenceChunkIds": []
+    },
+    {
+      "id": "edge_556",
+      "fromConceptId": "genai.research.papers.mt_bench",
+      "toConceptId": "genai.llmops.evals.benchmarks.mt_bench",
+      "type": "INTRODUCED",
+      "sourceUrl": null,
+      "confidence": null,
+      "verifierScore": null,
+      "evidenceChunkIds": []
+    },
+    {
+      "id": "edge_557",
+      "fromConceptId": "genai.research.papers.chatbot_arena",
+      "toConceptId": "genai.llmops.evals.benchmarks.chatbot_arena",
+      "type": "INTRODUCED",
+      "sourceUrl": null,
+      "confidence": null,
+      "verifierScore": null,
+      "evidenceChunkIds": []
+    },
+    {
+      "id": "edge_558",
+      "fromConceptId": "genai.models.architectures.retention",
+      "toConceptId": "genai.models.transformer",
+      "type": "CONTRASTS_WITH",
+      "sourceUrl": null,
+      "confidence": null,
+      "verifierScore": null,
+      "evidenceChunkIds": []
+    },
+    {
+      "id": "edge_559",
+      "fromConceptId": "genai.models.architectures.long_conv",
+      "toConceptId": "genai.models.transformer",
+      "type": "CONTRASTS_WITH",
+      "sourceUrl": null,
+      "confidence": null,
+      "verifierScore": null,
+      "evidenceChunkIds": []
+    },
+    {
+      "id": "edge_560",
+      "fromConceptId": "genai.models.architectures.rwkv",
+      "toConceptId": "genai.models.transformer",
+      "type": "CONTRASTS_WITH",
+      "sourceUrl": null,
+      "confidence": null,
+      "verifierScore": null,
+      "evidenceChunkIds": []
+    },
+    {
+      "id": "edge_561",
+      "fromConceptId": "genai.models.architectures.rwkv",
+      "toConceptId": "genai.models.ssm",
+      "type": "IS_A",
+      "sourceUrl": null,
+      "confidence": null,
+      "verifierScore": null,
+      "evidenceChunkIds": []
+    },
+    {
+      "id": "edge_562",
+      "fromConceptId": "genai.models.architectures.perceiver",
+      "toConceptId": "genai.models.transformer",
+      "type": "IS_A",
+      "sourceUrl": null,
+      "confidence": null,
+      "verifierScore": null,
+      "evidenceChunkIds": []
+    },
+    {
+      "id": "edge_563",
+      "fromConceptId": "genai.models.architectures.continual_llm",
+      "toConceptId": "genai.adaptive_flywheels.adaptation.continual_learning",
+      "type": "DEPENDS_ON",
+      "sourceUrl": null,
+      "confidence": null,
+      "verifierScore": null,
+      "evidenceChunkIds": []
+    },
+    {
+      "id": "edge_564",
+      "fromConceptId": "genai.models",
+      "toConceptId": "genai.models.architectures.retention",
+      "type": "PART_OF",
+      "sourceUrl": null,
+      "confidence": null,
+      "verifierScore": null,
+      "evidenceChunkIds": []
+    },
+    {
+      "id": "edge_565",
+      "fromConceptId": "genai.models",
+      "toConceptId": "genai.models.architectures.long_conv",
+      "type": "PART_OF",
+      "sourceUrl": null,
+      "confidence": null,
+      "verifierScore": null,
+      "evidenceChunkIds": []
+    },
+    {
+      "id": "edge_566",
+      "fromConceptId": "genai.models",
+      "toConceptId": "genai.models.architectures.rwkv",
+      "type": "PART_OF",
+      "sourceUrl": null,
+      "confidence": null,
+      "verifierScore": null,
+      "evidenceChunkIds": []
+    },
+    {
+      "id": "edge_567",
+      "fromConceptId": "genai.models",
+      "toConceptId": "genai.models.architectures.perceiver",
+      "type": "PART_OF",
+      "sourceUrl": null,
+      "confidence": null,
+      "verifierScore": null,
+      "evidenceChunkIds": []
+    },
+    {
+      "id": "edge_568",
+      "fromConceptId": "genai.models",
+      "toConceptId": "genai.models.architectures.continual_llm",
+      "type": "PART_OF",
+      "sourceUrl": null,
+      "confidence": null,
+      "verifierScore": null,
+      "evidenceChunkIds": []
+    },
+    {
+      "id": "edge_569",
+      "fromConceptId": "genai.research.papers.retnet",
+      "toConceptId": "genai.models.architectures.retention",
+      "type": "INTRODUCED",
+      "sourceUrl": null,
+      "confidence": null,
+      "verifierScore": null,
+      "evidenceChunkIds": []
+    },
+    {
+      "id": "edge_570",
+      "fromConceptId": "genai.research.papers.hyena",
+      "toConceptId": "genai.models.architectures.long_conv",
+      "type": "INTRODUCED",
       "sourceUrl": null,
       "confidence": null,
       "verifierScore": null,

@@ -53,7 +53,7 @@ export const EDGE_TYPE_CATEGORIES: readonly EdgeTypeCategory[] = [
   {
     id: "historical",
     label: "Historical",
-    types: ["INTRODUCED_BY", "POPULARIZED_BY", "ADVANCES", "ANSWERED_BY"],
+    types: ["INTRODUCED_BY", "POPULARIZED_BY", "ADVANCES", "ANSWERED_BY", "INTRODUCED"],
     defaultOn: false,
   },
   {
@@ -66,6 +66,12 @@ export const EDGE_TYPE_CATEGORIES: readonly EdgeTypeCategory[] = [
     id: "evaluation",
     label: "Evaluation",
     types: ["EVALUATED_BY", "INSTRUMENTED_BY"],
+    defaultOn: false,
+  },
+  {
+    id: "ecosystem",
+    label: "Ecosystem",
+    types: ["OFFERS_MODEL", "INCLUDES_MODEL", "HAS_VENDOR", "HAS_MODEL_FAMILY", "HAS_PLATFORM", "IMPLEMENTS", "GENERATIVE_PARADIGM"],
     defaultOn: false,
   },
 ];

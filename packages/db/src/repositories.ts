@@ -25,7 +25,13 @@ export type NodeKind =
   | "Tool"
   | "System"
   | "Artifact"
-  | "Question";
+  | "Question"
+  | "Company"
+  | "ModelFamily"
+  | "Model"
+  | "Platform"
+  | "Repository"
+  | "License";
 
 export type Concept = {
   id: string;
@@ -120,7 +126,15 @@ export type EdgeType =
   | "INSTANCE_OF"
   | "ADVANCES"
   | "COMPETES_WITH"
-  | "DEPENDS_ON";
+  | "DEPENDS_ON"
+  | "INTRODUCED"
+  | "GENERATIVE_PARADIGM"
+  | "OFFERS_MODEL"
+  | "INCLUDES_MODEL"
+  | "HAS_VENDOR"
+  | "HAS_MODEL_FAMILY"
+  | "HAS_PLATFORM"
+  | "IMPLEMENTS";
 
 export type Edge = {
   id: string;
@@ -870,6 +884,27 @@ export function createRepositories(pool: PgPoolLike) {
           masteryScore: toNumber(r.mastery_score),
           pagerank: toNumber(r.pagerank),
           community: r.community ?? null
+        }));
+      },
+
+      async listWithNotes(): Promise<
+        { id: string; title: string; kind: NodeKind; module: string | null; l0: string | null; l1: string[] }[]
+      > {
+        const res = await pool.query<{
+          id: string;
+          title: string;
+          kind: NodeKind;
+          module: string | null;
+          l0: string | null;
+          l1: string[] | null;
+        }>("SELECT id, title, kind, module, l0, l1 FROM concept ORDER BY title ASC");
+        return res.rows.map((r) => ({
+          id: r.id,
+          title: r.title,
+          kind: r.kind,
+          module: r.module,
+          l0: r.l0,
+          l1: toStringArray(r.l1)
         }));
       },
 

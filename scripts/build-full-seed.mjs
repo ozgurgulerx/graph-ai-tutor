@@ -1168,6 +1168,463 @@ e("genai.adaptive_flywheels.failure_modes.poisoning_feedback", "genai.security_s
 e("genai.adaptive_flywheels.failure_modes.bias_amplification", "genai.governance", "GOVERNED_BY");
 
 // ─────────────────────────────────────────────
+// 4) ECOSYSTEM, RESEARCH & ARCHITECTURE EXPANSION
+// ─────────────────────────────────────────────
+
+// --- Ecosystem Domain ---
+c("genai.ecosystem", "LLM Ecosystem", "Domain",
+  "Vendors, model families, platforms, repositories, and licensing for the LLM landscape.",
+  [], [], "ecosystem");
+e("genai", "genai.ecosystem", "HAS_MAJOR_AREA");
+
+// --- 4.1 Vendors / Companies (16) ---
+c("genai.ecosystem.vendors.openai", "OpenAI", "Company",
+  "Creator of GPT series, DALL-E, and ChatGPT.", [], [], "ecosystem");
+c("genai.ecosystem.vendors.anthropic", "Anthropic", "Company",
+  "AI safety company; creator of the Claude model family.", [], [], "ecosystem");
+c("genai.ecosystem.vendors.google", "Google DeepMind", "Company",
+  "Merged AI lab behind Gemini, AlphaFold, and foundational research.", [], [], "ecosystem");
+c("genai.ecosystem.vendors.meta", "Meta AI", "Company",
+  "Open-weights advocate; creator of the Llama model family.", [], [], "ecosystem");
+c("genai.ecosystem.vendors.mistral", "Mistral AI", "Company",
+  "European AI lab building open and commercial Mistral/Mixtral models.", [], [], "ecosystem");
+c("genai.ecosystem.vendors.cohere", "Cohere", "Company",
+  "Enterprise LLM provider; Command R family with RAG focus.", [], [], "ecosystem");
+c("genai.ecosystem.vendors.microsoft", "Microsoft", "Company",
+  "Azure OpenAI host; Phi small-model research; major AI infra provider.", [], [], "ecosystem");
+c("genai.ecosystem.vendors.alibaba", "Alibaba Cloud (Qwen)", "Company",
+  "Chinese cloud provider; Qwen open-weight model family.", [], [], "ecosystem");
+c("genai.ecosystem.vendors.baidu", "Baidu (ERNIE)", "Company",
+  "Chinese search company; ERNIE model family.", [], [], "ecosystem");
+c("genai.ecosystem.vendors.tencent", "Tencent (Hunyuan)", "Company",
+  "Chinese tech conglomerate; Hunyuan model family.", [], [], "ecosystem");
+c("genai.ecosystem.vendors.deepseek", "DeepSeek", "Company",
+  "Chinese AI lab; DeepSeek-V3 series with strong open-weight performance.", [], [], "ecosystem");
+c("genai.ecosystem.vendors.xai", "xAI", "Company",
+  "Elon Musk's AI company; creator of Grok models.", [], [], "ecosystem");
+c("genai.ecosystem.vendors.aleph_alpha", "Aleph Alpha", "Company",
+  "European AI company focused on sovereign, explainable LLMs.", [], [], "ecosystem");
+c("genai.ecosystem.vendors.stability_ai", "Stability AI", "Company",
+  "Open-source generative AI; Stable Diffusion, Stable LM.", [], [], "ecosystem");
+c("genai.ecosystem.vendors.hugging_face", "Hugging Face", "Company",
+  "AI community hub; Transformers library, Hub, Inference Endpoints.", [], [], "ecosystem");
+c("genai.ecosystem.vendors.liquid_ai", "Liquid AI", "Company",
+  "MIT-spinoff building Liquid Foundation Models based on liquid time-constant networks.", [], [], "ecosystem");
+
+// HAS_VENDOR edges: ecosystem → company
+const vendors = ["openai","anthropic","google","meta","mistral","cohere","microsoft",
+  "alibaba","baidu","tencent","deepseek","xai","aleph_alpha","stability_ai","hugging_face","liquid_ai"];
+for (const v of vendors) e("genai.ecosystem", `genai.ecosystem.vendors.${v}`, "HAS_VENDOR");
+
+// --- 4.2 Model Families (14) ---
+c("genai.ecosystem.families.gpt4", "GPT-4 Family", "ModelFamily",
+  "OpenAI's GPT-4 series including GPT-4 Turbo and GPT-4.1.", [], [], "ecosystem");
+c("genai.ecosystem.families.gpt4o", "GPT-4o Family", "ModelFamily",
+  "OpenAI's omni-model family optimized for multimodal and speed.", [], [], "ecosystem");
+c("genai.ecosystem.families.o_series", "OpenAI o-series (o1, o3)", "ModelFamily",
+  "OpenAI's reasoning-focused model family using extended thinking.", [], [], "ecosystem");
+c("genai.ecosystem.families.claude", "Claude Family (Opus/Sonnet/Haiku)", "ModelFamily",
+  "Anthropic's model family spanning capability tiers.", [], [], "ecosystem");
+c("genai.ecosystem.families.gemini", "Gemini Family", "ModelFamily",
+  "Google DeepMind's multimodal model family.", [], [], "ecosystem");
+c("genai.ecosystem.families.llama3", "Llama 3 Family", "ModelFamily",
+  "Meta's open-weight Llama 3 series.", [], [], "ecosystem");
+c("genai.ecosystem.families.mistral_models", "Mistral / Mixtral Family", "ModelFamily",
+  "Mistral AI's open and commercial models including MoE variants.", [], [], "ecosystem");
+c("genai.ecosystem.families.command_r", "Command R Family", "ModelFamily",
+  "Cohere's enterprise LLMs optimized for RAG and tool use.", [], [], "ecosystem");
+c("genai.ecosystem.families.phi", "Phi Family (Microsoft)", "ModelFamily",
+  "Microsoft's small language models (SLMs) with strong performance per parameter.", [], [], "ecosystem");
+c("genai.ecosystem.families.qwen3", "Qwen3 Family", "ModelFamily",
+  "Alibaba's open-weight multilingual model family.", [], [], "ecosystem");
+c("genai.ecosystem.families.ernie", "ERNIE Family (Baidu)", "ModelFamily",
+  "Baidu's knowledge-enhanced language models.", [], [], "ecosystem");
+c("genai.ecosystem.families.hunyuan", "Hunyuan Family (Tencent)", "ModelFamily",
+  "Tencent's large language and multimodal models.", [], [], "ecosystem");
+c("genai.ecosystem.families.deepseek_v3", "DeepSeek-V3 Family", "ModelFamily",
+  "DeepSeek's high-performance open-weight MoE models.", [], [], "ecosystem");
+c("genai.ecosystem.families.lfm", "LFM Family (Liquid AI)", "ModelFamily",
+  "Liquid AI's foundation models based on liquid time-constant architectures.", [], [], "ecosystem");
+
+// OFFERS_MODEL: company → model family
+e("genai.ecosystem.vendors.openai", "genai.ecosystem.families.gpt4", "OFFERS_MODEL");
+e("genai.ecosystem.vendors.openai", "genai.ecosystem.families.gpt4o", "OFFERS_MODEL");
+e("genai.ecosystem.vendors.openai", "genai.ecosystem.families.o_series", "OFFERS_MODEL");
+e("genai.ecosystem.vendors.anthropic", "genai.ecosystem.families.claude", "OFFERS_MODEL");
+e("genai.ecosystem.vendors.google", "genai.ecosystem.families.gemini", "OFFERS_MODEL");
+e("genai.ecosystem.vendors.meta", "genai.ecosystem.families.llama3", "OFFERS_MODEL");
+e("genai.ecosystem.vendors.mistral", "genai.ecosystem.families.mistral_models", "OFFERS_MODEL");
+e("genai.ecosystem.vendors.cohere", "genai.ecosystem.families.command_r", "OFFERS_MODEL");
+e("genai.ecosystem.vendors.microsoft", "genai.ecosystem.families.phi", "OFFERS_MODEL");
+e("genai.ecosystem.vendors.alibaba", "genai.ecosystem.families.qwen3", "OFFERS_MODEL");
+e("genai.ecosystem.vendors.baidu", "genai.ecosystem.families.ernie", "OFFERS_MODEL");
+e("genai.ecosystem.vendors.tencent", "genai.ecosystem.families.hunyuan", "OFFERS_MODEL");
+e("genai.ecosystem.vendors.deepseek", "genai.ecosystem.families.deepseek_v3", "OFFERS_MODEL");
+e("genai.ecosystem.vendors.liquid_ai", "genai.ecosystem.families.lfm", "OFFERS_MODEL");
+
+// HAS_MODEL_FAMILY: company → model family (same as OFFERS_MODEL but from company perspective)
+// Already covered by OFFERS_MODEL above; skip duplicate.
+
+// --- 4.3 Specific Models (19) ---
+c("genai.ecosystem.models.gpt4o", "GPT-4o", "Model",
+  "OpenAI's flagship omni model; multimodal input/output.", [], [], "ecosystem");
+c("genai.ecosystem.models.gpt4_1", "GPT-4.1", "Model",
+  "OpenAI's coding-optimized GPT-4 variant.", [], [], "ecosystem");
+c("genai.ecosystem.models.o1", "o1", "Model",
+  "OpenAI's first reasoning model with chain-of-thought at inference.", [], [], "ecosystem");
+c("genai.ecosystem.models.o3", "o3", "Model",
+  "OpenAI's advanced reasoning model succeeding o1.", [], [], "ecosystem");
+c("genai.ecosystem.models.claude_opus", "Claude Opus 4.6", "Model",
+  "Anthropic's most capable model; excels at complex, agentic tasks.", [], [], "ecosystem");
+c("genai.ecosystem.models.claude_sonnet", "Claude Sonnet 4.5", "Model",
+  "Anthropic's balanced model; strong coding and reasoning.", [], [], "ecosystem");
+c("genai.ecosystem.models.claude_haiku", "Claude Haiku 4.5", "Model",
+  "Anthropic's fastest and most cost-effective model.", [], [], "ecosystem");
+c("genai.ecosystem.models.gemini_2_5_pro", "Gemini 2.5 Pro", "Model",
+  "Google's most capable Gemini model with extended thinking.", [], [], "ecosystem");
+c("genai.ecosystem.models.llama_3_3_70b", "Llama 3.3 70B Instruct", "Model",
+  "Meta's open-weight 70B instruction-tuned model.", [], [], "ecosystem");
+c("genai.ecosystem.models.mistral_large_3", "Mistral Large 3", "Model",
+  "Mistral's flagship commercial model.", [], [], "ecosystem");
+c("genai.ecosystem.models.mixtral", "Mixtral 8x22B", "Model",
+  "Mistral's large MoE model; 8 experts with 22B params each.", [], [], "ecosystem");
+c("genai.ecosystem.models.command_r_plus", "Command R+", "Model",
+  "Cohere's most capable RAG-optimized model.", [], [], "ecosystem");
+c("genai.ecosystem.models.phi_4", "Phi-4", "Model",
+  "Microsoft's small but powerful reasoning model.", [], [], "ecosystem");
+c("genai.ecosystem.models.qwen3", "Qwen3", "Model",
+  "Alibaba's latest multilingual model.", [], [], "ecosystem");
+c("genai.ecosystem.models.ernie_4_5", "ERNIE 4.5", "Model",
+  "Baidu's latest ERNIE large language model.", [], [], "ecosystem");
+c("genai.ecosystem.models.hunyuan_large", "Hunyuan-Large", "Model",
+  "Tencent's largest open-source MoE model.", [], [], "ecosystem");
+c("genai.ecosystem.models.deepseek_v3", "DeepSeek-V3.2", "Model",
+  "DeepSeek's latest high-performance open-weight MoE model.", [], [], "ecosystem");
+c("genai.ecosystem.models.grok", "Grok", "Model",
+  "xAI's conversational model with real-time information access.", [], [], "ecosystem");
+c("genai.ecosystem.models.lfm2", "LFM-2", "Model",
+  "Liquid AI's latest foundation model using liquid time-constant networks.", [], [], "ecosystem");
+
+// INCLUDES_MODEL: family → model
+e("genai.ecosystem.families.gpt4o", "genai.ecosystem.models.gpt4o", "INCLUDES_MODEL");
+e("genai.ecosystem.families.gpt4", "genai.ecosystem.models.gpt4_1", "INCLUDES_MODEL");
+e("genai.ecosystem.families.o_series", "genai.ecosystem.models.o1", "INCLUDES_MODEL");
+e("genai.ecosystem.families.o_series", "genai.ecosystem.models.o3", "INCLUDES_MODEL");
+e("genai.ecosystem.families.claude", "genai.ecosystem.models.claude_opus", "INCLUDES_MODEL");
+e("genai.ecosystem.families.claude", "genai.ecosystem.models.claude_sonnet", "INCLUDES_MODEL");
+e("genai.ecosystem.families.claude", "genai.ecosystem.models.claude_haiku", "INCLUDES_MODEL");
+e("genai.ecosystem.families.gemini", "genai.ecosystem.models.gemini_2_5_pro", "INCLUDES_MODEL");
+e("genai.ecosystem.families.llama3", "genai.ecosystem.models.llama_3_3_70b", "INCLUDES_MODEL");
+e("genai.ecosystem.families.mistral_models", "genai.ecosystem.models.mistral_large_3", "INCLUDES_MODEL");
+e("genai.ecosystem.families.mistral_models", "genai.ecosystem.models.mixtral", "INCLUDES_MODEL");
+e("genai.ecosystem.families.command_r", "genai.ecosystem.models.command_r_plus", "INCLUDES_MODEL");
+e("genai.ecosystem.families.phi", "genai.ecosystem.models.phi_4", "INCLUDES_MODEL");
+e("genai.ecosystem.families.qwen3", "genai.ecosystem.models.qwen3", "INCLUDES_MODEL");
+e("genai.ecosystem.families.ernie", "genai.ecosystem.models.ernie_4_5", "INCLUDES_MODEL");
+e("genai.ecosystem.families.hunyuan", "genai.ecosystem.models.hunyuan_large", "INCLUDES_MODEL");
+e("genai.ecosystem.families.deepseek_v3", "genai.ecosystem.models.deepseek_v3", "INCLUDES_MODEL");
+e("genai.ecosystem.families.lfm", "genai.ecosystem.models.lfm2", "INCLUDES_MODEL");
+
+// Model → architecture paradigm (GENERATIVE_PARADIGM)
+// Most LLMs are autoregressive decoder-only transformers
+const autoregModels = ["gpt4o","gpt4_1","o1","o3","claude_opus","claude_sonnet","claude_haiku",
+  "gemini_2_5_pro","llama_3_3_70b","mistral_large_3","command_r_plus","phi_4","qwen3","ernie_4_5","grok"];
+for (const m of autoregModels)
+  e(`genai.ecosystem.models.${m}`, "genai.foundations.generative_paradigms.autoregressive", "GENERATIVE_PARADIGM");
+// MoE models
+e("genai.ecosystem.models.mixtral", "genai.models.moe", "IS_A");
+e("genai.ecosystem.models.hunyuan_large", "genai.models.moe", "IS_A");
+e("genai.ecosystem.models.deepseek_v3", "genai.models.moe", "IS_A");
+// LFM uses liquid architecture
+e("genai.ecosystem.models.lfm2", "genai.models.liquid_fms", "IS_A");
+// Reasoning models link
+e("genai.ecosystem.models.o1", "genai.models.reasoning_models", "IS_A");
+e("genai.ecosystem.models.o3", "genai.models.reasoning_models", "IS_A");
+
+// xAI → Grok
+e("genai.ecosystem.vendors.xai", "genai.ecosystem.models.grok", "OFFERS_MODEL");
+
+// --- 4.4 Platforms (11) ---
+c("genai.ecosystem.platforms.openai_api", "OpenAI API", "Platform",
+  "OpenAI's hosted API for GPT, DALL-E, and Whisper models.", [], [], "ecosystem");
+c("genai.ecosystem.platforms.azure_openai", "Azure OpenAI Service", "Platform",
+  "Microsoft Azure-hosted OpenAI models with enterprise features.", [], [], "ecosystem");
+c("genai.ecosystem.platforms.anthropic_api", "Anthropic API", "Platform",
+  "Anthropic's hosted API for Claude models.", [], [], "ecosystem");
+c("genai.ecosystem.platforms.vertex_ai", "Google Vertex AI", "Platform",
+  "Google Cloud's ML platform hosting Gemini and open models.", [], [], "ecosystem");
+c("genai.ecosystem.platforms.gemini_api", "Gemini API", "Platform",
+  "Google's direct API for Gemini models.", [], [], "ecosystem");
+c("genai.ecosystem.platforms.hf_inference", "Hugging Face Inference Endpoints", "Platform",
+  "Managed inference for any Hugging Face Hub model.", [], [], "ecosystem");
+c("genai.ecosystem.platforms.hf_tgi", "Hugging Face TGI", "Platform",
+  "Open-source high-performance text generation server.", [], [], "ecosystem");
+c("genai.ecosystem.platforms.together_ai", "Together AI", "Platform",
+  "Cloud platform for running open-source models at scale.", [], [], "ecosystem");
+c("genai.ecosystem.platforms.fireworks", "Fireworks AI", "Platform",
+  "Fast inference platform specialized for open models.", [], [], "ecosystem");
+c("genai.ecosystem.platforms.replicate", "Replicate", "Platform",
+  "Run ML models via API with simple deployment.", [], [], "ecosystem");
+c("genai.ecosystem.platforms.deepseek_api", "DeepSeek API", "Platform",
+  "DeepSeek's hosted API for their model family.", [], [], "ecosystem");
+
+// HAS_PLATFORM: company → platform
+e("genai.ecosystem.vendors.openai", "genai.ecosystem.platforms.openai_api", "HAS_PLATFORM");
+e("genai.ecosystem.vendors.microsoft", "genai.ecosystem.platforms.azure_openai", "HAS_PLATFORM");
+e("genai.ecosystem.vendors.anthropic", "genai.ecosystem.platforms.anthropic_api", "HAS_PLATFORM");
+e("genai.ecosystem.vendors.google", "genai.ecosystem.platforms.vertex_ai", "HAS_PLATFORM");
+e("genai.ecosystem.vendors.google", "genai.ecosystem.platforms.gemini_api", "HAS_PLATFORM");
+e("genai.ecosystem.vendors.hugging_face", "genai.ecosystem.platforms.hf_inference", "HAS_PLATFORM");
+e("genai.ecosystem.vendors.hugging_face", "genai.ecosystem.platforms.hf_tgi", "HAS_PLATFORM");
+e("genai.ecosystem.vendors.deepseek", "genai.ecosystem.platforms.deepseek_api", "HAS_PLATFORM");
+
+// Platform → infrastructure edges
+e("genai.ecosystem.platforms.azure_openai", "genai.systems_inference.deployment.cloud", "IS_A");
+e("genai.ecosystem.platforms.hf_tgi", "genai.systems_inference.optimization.continuous_batching", "USED_IN");
+
+// --- 4.5 Repositories (7) ---
+c("genai.ecosystem.repos.transformers", "Hugging Face Transformers", "Repository",
+  "The most popular open-source library for transformer models; supports training and inference.", [], [], "ecosystem");
+c("genai.ecosystem.repos.vllm", "vLLM", "Repository",
+  "Open-source high-throughput LLM serving engine with PagedAttention.", [], [], "ecosystem");
+c("genai.ecosystem.repos.llama_cpp", "llama.cpp", "Repository",
+  "C++ inference engine for running LLMs on CPU and consumer hardware.", [], [], "ecosystem");
+c("genai.ecosystem.repos.ollama", "Ollama", "Repository",
+  "Tool for running LLMs locally with simple CLI interface.", [], [], "ecosystem");
+c("genai.ecosystem.repos.langchain", "LangChain", "Repository",
+  "Framework for building LLM-powered applications with chains and agents.", [], [], "ecosystem");
+c("genai.ecosystem.repos.llamaindex", "LlamaIndex", "Repository",
+  "Data framework for connecting LLMs with external data sources (RAG).", [], [], "ecosystem");
+c("genai.ecosystem.repos.tgi", "Text Generation Inference (TGI)", "Repository",
+  "Hugging Face's production inference server for text generation.", [], [], "ecosystem");
+
+// IMPLEMENTS: repo → method/concept
+e("genai.ecosystem.repos.vllm", "genai.systems_inference.kvcache.pagedattention", "IMPLEMENTS");
+e("genai.ecosystem.repos.vllm", "genai.systems_inference.optimization.continuous_batching", "IMPLEMENTS");
+e("genai.ecosystem.repos.transformers", "genai.models.transformer", "IMPLEMENTS");
+e("genai.ecosystem.repos.llama_cpp", "genai.systems_inference.optimization.quantization", "IMPLEMENTS");
+e("genai.ecosystem.repos.langchain", "genai.agents_tools.architectures.react", "IMPLEMENTS");
+e("genai.ecosystem.repos.langchain", "genai.knowledge_memory.rag", "IMPLEMENTS");
+e("genai.ecosystem.repos.llamaindex", "genai.knowledge_memory.rag", "IMPLEMENTS");
+e("genai.ecosystem.repos.llamaindex", "genai.knowledge_memory.rag.graphrag", "IMPLEMENTS");
+e("genai.ecosystem.repos.tgi", "genai.systems_inference.optimization.continuous_batching", "IMPLEMENTS");
+
+// Repo → platform links
+e("genai.ecosystem.repos.vllm", "genai.systems_inference.serving.vllm", "IS_A");
+e("genai.ecosystem.repos.tgi", "genai.ecosystem.platforms.hf_tgi", "IS_A");
+
+// --- 4.6 Licenses (5) ---
+c("genai.ecosystem.licenses.apache2", "Apache 2.0 License", "License",
+  "Permissive open-source license used by many AI frameworks and models.", [], [], "ecosystem");
+c("genai.ecosystem.licenses.mit", "MIT License", "License",
+  "Permissive open-source license; minimal restrictions.", [], [], "ecosystem");
+c("genai.ecosystem.licenses.llama3", "Llama 3 Community License", "License",
+  "Meta's custom license for Llama 3 models; open with usage restrictions.", [], [], "ecosystem");
+c("genai.ecosystem.licenses.proprietary", "Proprietary API Terms", "License",
+  "Closed models available only through API access with usage terms.", [], [], "ecosystem");
+c("genai.ecosystem.licenses.stability", "Stability AI Community License", "License",
+  "Stability AI's license for open model weights with community terms.", [], [], "ecosystem");
+
+// Model family → license
+e("genai.ecosystem.families.llama3", "genai.ecosystem.licenses.llama3", "GOVERNED_BY");
+e("genai.ecosystem.families.gpt4", "genai.ecosystem.licenses.proprietary", "GOVERNED_BY");
+e("genai.ecosystem.families.gpt4o", "genai.ecosystem.licenses.proprietary", "GOVERNED_BY");
+e("genai.ecosystem.families.o_series", "genai.ecosystem.licenses.proprietary", "GOVERNED_BY");
+e("genai.ecosystem.families.claude", "genai.ecosystem.licenses.proprietary", "GOVERNED_BY");
+e("genai.ecosystem.families.gemini", "genai.ecosystem.licenses.proprietary", "GOVERNED_BY");
+e("genai.ecosystem.families.mistral_models", "genai.ecosystem.licenses.apache2", "GOVERNED_BY");
+e("genai.ecosystem.families.qwen3", "genai.ecosystem.licenses.apache2", "GOVERNED_BY");
+e("genai.ecosystem.families.deepseek_v3", "genai.ecosystem.licenses.mit", "GOVERNED_BY");
+
+// Repo → license
+e("genai.ecosystem.repos.transformers", "genai.ecosystem.licenses.apache2", "GOVERNED_BY");
+e("genai.ecosystem.repos.vllm", "genai.ecosystem.licenses.apache2", "GOVERNED_BY");
+e("genai.ecosystem.repos.langchain", "genai.ecosystem.licenses.mit", "GOVERNED_BY");
+e("genai.ecosystem.repos.llamaindex", "genai.ecosystem.licenses.mit", "GOVERNED_BY");
+
+// --- 4.7 Research Domain ---
+c("genai.research", "Research Papers & Provenance", "Domain",
+  "Seminal research papers that introduced key concepts and methods.",
+  [], [], "research");
+e("genai", "genai.research", "HAS_MAJOR_AREA");
+
+// --- 4.7a Research Papers (39, kind=Artifact) ---
+c("genai.research.papers.transformer", "Attention Is All You Need (2017)", "Artifact",
+  "Introduced the Transformer architecture with self-attention.", [], [], "research");
+c("genai.research.papers.bert", "BERT: Pre-training of Deep Bidirectional Transformers (2018)", "Artifact",
+  "Introduced bidirectional masked language model pretraining.", [], [], "research");
+c("genai.research.papers.t5", "T5: Text-to-Text Transfer Transformer (2019)", "Artifact",
+  "Unified NLP tasks into a text-to-text framework.", [], [], "research");
+c("genai.research.papers.gpt2", "Language Models are Unsupervised Multitask Learners (GPT-2, 2019)", "Artifact",
+  "Showed large LMs can perform tasks zero-shot without fine-tuning.", [], [], "research");
+c("genai.research.papers.gpt3", "Language Models are Few-Shot Learners (GPT-3, 2020)", "Artifact",
+  "Demonstrated in-context few-shot learning at scale.", [], [], "research");
+c("genai.research.papers.rag", "Retrieval-Augmented Generation (RAG, 2020)", "Artifact",
+  "Combined retrieval with generation for knowledge-grounded outputs.", [], [], "research");
+c("genai.research.papers.realm", "REALM: Retrieval-Augmented Language Model Pre-Training (2020)", "Artifact",
+  "Pre-training with a learned retriever for knowledge-intensive tasks.", [], [], "research");
+c("genai.research.papers.scaling_laws", "Scaling Laws for Neural Language Models (Kaplan et al., 2020)", "Artifact",
+  "Characterized power-law relationships between compute, data, and model size.", [], [], "research");
+c("genai.research.papers.mmlu", "MMLU Benchmark (2020)", "Artifact",
+  "Massive Multitask Language Understanding benchmark across 57 subjects.", [], [], "research");
+c("genai.research.papers.s4", "Efficiently Modeling Long Sequences with Structured State Spaces (S4, 2021)", "Artifact",
+  "Introduced structured state space models for long-range sequence modeling.", [], [], "research");
+c("genai.research.papers.switch_transformer", "Switch Transformers (2021)", "Artifact",
+  "Simplified MoE with one-expert routing for trillion-parameter models.", [], [], "research");
+c("genai.research.papers.rope", "RoTary Position Embedding (RoPE, 2021)", "Artifact",
+  "Rotation-based positional encoding enabling length extrapolation.", [], [], "research");
+c("genai.research.papers.alibi", "ALiBi: Train Short, Test Long (2021)", "Artifact",
+  "Linear attention bias replacing positional embeddings.", [], [], "research");
+c("genai.research.papers.d3pm", "Structured Denoising Diffusion in Discrete State-Spaces (D3PM, 2021)", "Artifact",
+  "Extended diffusion models to discrete domains.", [], [], "research");
+c("genai.research.papers.glam", "GLaM: Efficient Scaling with Mixture-of-Experts (2021)", "Artifact",
+  "Demonstrated MoE scaling efficiency compared to dense models.", [], [], "research");
+c("genai.research.papers.chinchilla", "Training Compute-Optimal Large Language Models (Chinchilla, 2022)", "Artifact",
+  "Showed optimal allocation of compute budget between model size and data.", [], [], "research");
+c("genai.research.papers.cot", "Chain-of-Thought Prompting (2022)", "Artifact",
+  "Eliciting step-by-step reasoning through prompting.", [], [], "research");
+c("genai.research.papers.self_consistency", "Self-Consistency Improves Chain of Thought Reasoning (2022)", "Artifact",
+  "Sample multiple reasoning paths and take majority vote.", [], [], "research");
+c("genai.research.papers.instructgpt", "InstructGPT / Training with Human Feedback (2022)", "Artifact",
+  "Pioneered RLHF for aligning LLMs to human instructions.", [], [], "research");
+c("genai.research.papers.constitutional_ai", "Constitutional AI (2022)", "Artifact",
+  "Self-improvement through AI-generated critiques guided by principles.", [], [], "research");
+c("genai.research.papers.flash_attention", "FlashAttention: Fast and Memory-Efficient Attention (2022)", "Artifact",
+  "IO-aware exact attention algorithm that reduces memory reads/writes.", [], [], "research");
+c("genai.research.papers.diffusion_lm", "Diffusion-LM (2022)", "Artifact",
+  "Applied continuous diffusion to text generation.", [], [], "research");
+c("genai.research.papers.toolformer", "Toolformer: Language Models Can Teach Themselves to Use Tools (2023)", "Artifact",
+  "Taught LLMs to use external tools through self-supervised learning.", [], [], "research");
+c("genai.research.papers.react", "ReAct: Synergizing Reasoning and Acting (2023)", "Artifact",
+  "Interleaved reasoning and action for grounded task solving.", [], [], "research");
+c("genai.research.papers.tree_of_thoughts", "Tree of Thoughts (2023)", "Artifact",
+  "Tree-structured exploration of reasoning paths.", [], [], "research");
+c("genai.research.papers.qlora", "QLoRA: Efficient Finetuning of Quantized LLMs (2023)", "Artifact",
+  "4-bit quantized base model with LoRA adapters for efficient fine-tuning.", [], [], "research");
+c("genai.research.papers.gptq", "GPTQ: Post-Training Quantization (2023)", "Artifact",
+  "One-shot weight quantization using approximate second-order information.", [], [], "research");
+c("genai.research.papers.awq", "AWQ: Activation-aware Weight Quantization (2023)", "Artifact",
+  "Quantization that preserves salient weights identified by activation patterns.", [], [], "research");
+c("genai.research.papers.vllm", "Efficient Memory Management for LLM Serving with PagedAttention (vLLM, 2023)", "Artifact",
+  "Introduced PagedAttention for efficient KV cache management.", [], [], "research");
+c("genai.research.papers.retnet", "Retentive Network (RetNet, 2023)", "Artifact",
+  "Dual-form attention supporting both parallel training and recurrent inference.", [], [], "research");
+c("genai.research.papers.hyena", "Hyena Hierarchy (2023)", "Artifact",
+  "Sub-quadratic attention replacement using long convolutions.", [], [], "research");
+c("genai.research.papers.mamba", "Mamba: Linear-Time Sequence Modeling with Selective State Spaces (2023)", "Artifact",
+  "Selective state space model with linear-time inference.", [], [], "research");
+c("genai.research.papers.dpo", "Direct Preference Optimization (DPO, 2023)", "Artifact",
+  "Simplified RLHF by directly optimizing policy from preferences.", [], [], "research");
+c("genai.research.papers.mt_bench", "MT-Bench / Judging LLM-as-a-Judge (2023)", "Artifact",
+  "Multi-turn benchmark using LLM judges for evaluation.", [], [], "research");
+c("genai.research.papers.retro", "RETRO: Retrieval-Enhanced Transformer (2022)", "Artifact",
+  "Pre-training with chunked cross-attention over retrieved neighbors.", [], [], "research");
+c("genai.research.papers.atlas", "Atlas: Few-shot Learning with Retrieval Augmented LMs (2023)", "Artifact",
+  "Jointly trained retriever and LM for few-shot learning.", [], [], "research");
+c("genai.research.papers.bpe", "Neural Machine Translation of Rare Words with Subword Units (BPE, 2016)", "Artifact",
+  "Introduced Byte Pair Encoding for subword tokenization.", [], [], "research");
+c("genai.research.papers.sentencepiece", "SentencePiece (2018)", "Artifact",
+  "Language-independent subword tokenizer and detokenizer.", [], [], "research");
+c("genai.research.papers.chatbot_arena", "Chatbot Arena (2024)", "Artifact",
+  "Crowdsourced LLM evaluation via pairwise human preferences.", [], [], "research");
+
+// INTRODUCED: paper → existing concept/method
+e("genai.research.papers.transformer", "genai.models.transformer", "INTRODUCED");
+e("genai.research.papers.bert", "genai.models.transformer.encoder_only", "INTRODUCED");
+e("genai.research.papers.gpt2", "genai.models.transformer.decoder_only", "INTRODUCED");
+e("genai.research.papers.gpt3", "genai.foundations.scaling.scaling_laws", "INTRODUCED");
+e("genai.research.papers.rag", "genai.knowledge_memory.rag", "INTRODUCED");
+e("genai.research.papers.realm", "genai.knowledge_memory.rag", "INTRODUCED");
+e("genai.research.papers.scaling_laws", "genai.foundations.scaling.scaling_laws", "INTRODUCED");
+e("genai.research.papers.s4", "genai.models.ssm.s4", "INTRODUCED");
+e("genai.research.papers.switch_transformer", "genai.models.moe.switch_transformer", "INTRODUCED");
+e("genai.research.papers.rope", "genai.models.transformer.positional_encoding.rope", "INTRODUCED");
+e("genai.research.papers.alibi", "genai.models.transformer.positional_encoding.alibi", "INTRODUCED");
+e("genai.research.papers.d3pm", "genai.models.diffusion_lm.discrete_diffusion", "INTRODUCED");
+e("genai.research.papers.glam", "genai.models.moe", "INTRODUCED");
+e("genai.research.papers.chinchilla", "genai.foundations.scaling.data_quality", "INTRODUCED");
+e("genai.research.papers.cot", "genai.foundations.problem_families.reasoning", "INTRODUCED");
+e("genai.research.papers.self_consistency", "genai.models.reasoning_models.tts.best_of_n", "INTRODUCED");
+e("genai.research.papers.instructgpt", "genai.training_alignment.rlft.rlhf", "INTRODUCED");
+e("genai.research.papers.constitutional_ai", "genai.training_alignment.rlft.constitutional_ai", "INTRODUCED");
+e("genai.research.papers.flash_attention", "genai.systems_inference.attention.flashattention", "INTRODUCED");
+e("genai.research.papers.diffusion_lm", "genai.models.diffusion_lm", "INTRODUCED");
+e("genai.research.papers.toolformer", "genai.agents_tools.architectures.tool_augmented", "INTRODUCED");
+e("genai.research.papers.react", "genai.agents_tools.architectures.react", "INTRODUCED");
+e("genai.research.papers.tree_of_thoughts", "genai.models.reasoning_models.tts.tree_search", "INTRODUCED");
+e("genai.research.papers.qlora", "genai.training_alignment.finetuning.lora", "INTRODUCED");
+e("genai.research.papers.gptq", "genai.systems_inference.optimization.quantization", "INTRODUCED");
+e("genai.research.papers.awq", "genai.systems_inference.optimization.quantization", "INTRODUCED");
+e("genai.research.papers.vllm", "genai.systems_inference.kvcache.pagedattention", "INTRODUCED");
+e("genai.research.papers.mamba", "genai.models.ssm.mamba", "INTRODUCED");
+e("genai.research.papers.dpo", "genai.training_alignment.rlft.dpo", "INTRODUCED");
+e("genai.research.papers.retro", "genai.knowledge_memory.rag", "INTRODUCED");
+e("genai.research.papers.atlas", "genai.knowledge_memory.rag", "INTRODUCED");
+e("genai.research.papers.bpe", "genai.foundations.representation.tokenization", "INTRODUCED");
+e("genai.research.papers.sentencepiece", "genai.foundations.representation.tokenization", "INTRODUCED");
+e("genai.research.papers.t5", "genai.models.transformer.encoder_decoder", "INTRODUCED");
+
+// Paper PART_OF research domain
+const papers = ["transformer","bert","t5","gpt2","gpt3","rag","realm","scaling_laws","mmlu",
+  "s4","switch_transformer","rope","alibi","d3pm","glam","chinchilla","cot","self_consistency",
+  "instructgpt","constitutional_ai","flash_attention","diffusion_lm","toolformer","react",
+  "tree_of_thoughts","qlora","gptq","awq","vllm","retnet","hyena","mamba","dpo","mt_bench",
+  "retro","atlas","bpe","sentencepiece","chatbot_arena"];
+for (const p of papers) e("genai.research", `genai.research.papers.${p}`, "PART_OF");
+
+// --- 4.8 Benchmarks (4, kind=Benchmark) ---
+c("genai.llmops.evals.benchmarks.helm", "HELM (Holistic Evaluation of Language Models)", "Benchmark",
+  "Stanford's holistic evaluation covering accuracy, robustness, fairness, and efficiency.", [], [], "llmops");
+c("genai.llmops.evals.benchmarks.mt_bench", "MT-Bench", "Benchmark",
+  "Multi-turn benchmark with LLM-as-a-judge for conversational quality.", [], [], "llmops");
+c("genai.llmops.evals.benchmarks.chatbot_arena", "Chatbot Arena (LMSYS)", "Benchmark",
+  "Crowdsourced blind pairwise comparison platform for LLM ranking.", [], [], "llmops");
+c("genai.llmops.evals.benchmarks.mmlu", "MMLU", "Benchmark",
+  "Massive Multitask Language Understanding across 57 academic subjects.", [], [], "llmops");
+
+for (const b of ["helm","mt_bench","chatbot_arena","mmlu"])
+  e("genai.llmops.evals", `genai.llmops.evals.benchmarks.${b}`, "PART_OF");
+
+// Benchmark ↔ paper links
+e("genai.research.papers.mmlu", "genai.llmops.evals.benchmarks.mmlu", "INTRODUCED");
+e("genai.research.papers.mt_bench", "genai.llmops.evals.benchmarks.mt_bench", "INTRODUCED");
+e("genai.research.papers.chatbot_arena", "genai.llmops.evals.benchmarks.chatbot_arena", "INTRODUCED");
+
+// --- 4.9 Architecture Taxonomy (5 new nodes) ---
+// (encoder_only already exists, liquid_fms already exists)
+c("genai.models.architectures.retention", "Retention Networks (RetNet)", "Architecture",
+  "Dual-form architecture: parallel training like transformers, recurrent inference for efficiency.",
+  ["O(n) inference cost", "Competes with attention-based models"], [], "models");
+c("genai.models.architectures.long_conv", "Long-convolution LMs (Hyena)", "Architecture",
+  "Replace attention with learnable long convolutions for sub-quadratic sequence modeling.",
+  ["Sub-quadratic complexity", "Strong on long-range dependencies"], [], "models");
+c("genai.models.architectures.rwkv", "RWKV", "Architecture",
+  "Combines RNN efficiency with transformer-level parallelism for training.",
+  ["Linear attention variant", "Supports both parallel and sequential modes"], [], "models");
+c("genai.models.architectures.perceiver", "Perceiver / Latent Bottleneck Models", "Architecture",
+  "Cross-attention to a fixed-size latent array enables handling arbitrary input sizes.",
+  ["Modality-agnostic", "Handles very long or multimodal inputs"], [], "models");
+c("genai.models.architectures.continual_llm", "Continual / Online LLMs", "Architecture",
+  "Architectures designed for continuous learning without catastrophic forgetting.",
+  ["Emerging research area", "Relevant for lifelong agents"], [], "models");
+
+// Architecture IS_A edges
+e("genai.models.architectures.retention", "genai.models.transformer", "CONTRASTS_WITH");
+e("genai.models.architectures.long_conv", "genai.models.transformer", "CONTRASTS_WITH");
+e("genai.models.architectures.rwkv", "genai.models.transformer", "CONTRASTS_WITH");
+e("genai.models.architectures.rwkv", "genai.models.ssm", "IS_A");
+e("genai.models.architectures.perceiver", "genai.models.transformer", "IS_A");
+e("genai.models.architectures.continual_llm", "genai.adaptive_flywheels.adaptation.continual_learning", "DEPENDS_ON");
+
+// Architecture PART_OF models domain
+for (const a of ["retention","long_conv","rwkv","perceiver","continual_llm"])
+  e("genai.models", `genai.models.architectures.${a}`, "PART_OF");
+
+// Paper → architecture links
+e("genai.research.papers.retnet", "genai.models.architectures.retention", "INTRODUCED");
+e("genai.research.papers.hyena", "genai.models.architectures.long_conv", "INTRODUCED");
+
+// ─────────────────────────────────────────────
 // SOURCES
 // ─────────────────────────────────────────────
 src("source_seed_kv", "seed://kv-cache", "KV cache notes");

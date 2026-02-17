@@ -68,6 +68,7 @@ type OtherRelationGroup =
   | "ML-specific"
   | "Security"
   | "Provenance"
+  | "Ecosystem"
   | "Other";
 
 const OTHER_RELATION_GROUP_ORDER: readonly OtherRelationGroup[] = [
@@ -77,6 +78,7 @@ const OTHER_RELATION_GROUP_ORDER: readonly OtherRelationGroup[] = [
   "ML-specific",
   "Security",
   "Provenance",
+  "Ecosystem",
   "Other"
 ];
 
@@ -108,7 +110,15 @@ const EDGE_TYPE_GROUPS: Record<EdgeType, OtherRelationGroup | "prerequisite"> = 
   POPULARIZED_BY: "Provenance",
   GOVERNED_BY: "Provenance",
   STANDARDIZED_BY: "Provenance",
-  ALIGNED_WITH: "Provenance"
+  ALIGNED_WITH: "Provenance",
+  INTRODUCED: "Provenance",
+  GENERATIVE_PARADIGM: "ML-specific",
+  OFFERS_MODEL: "Ecosystem",
+  INCLUDES_MODEL: "Ecosystem",
+  HAS_VENDOR: "Ecosystem",
+  HAS_MODEL_FAMILY: "Ecosystem",
+  HAS_PLATFORM: "Ecosystem",
+  IMPLEMENTS: "Ecosystem"
 };
 
 const DIRECTION_OPTIONS = [

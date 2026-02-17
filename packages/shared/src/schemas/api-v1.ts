@@ -38,7 +38,15 @@ export const EdgeTypeSchema = z.enum([
   "INSTANCE_OF",
   "ADVANCES",
   "COMPETES_WITH",
-  "DEPENDS_ON"
+  "DEPENDS_ON",
+  "INTRODUCED",
+  "GENERATIVE_PARADIGM",
+  "OFFERS_MODEL",
+  "INCLUDES_MODEL",
+  "HAS_VENDOR",
+  "HAS_MODEL_FAMILY",
+  "HAS_PLATFORM",
+  "IMPLEMENTS"
 ]);
 
 export type EdgeType = z.infer<typeof EdgeTypeSchema>;
@@ -59,7 +67,13 @@ export const NodeKindSchema = z.enum([
   "Tool",
   "System",
   "Artifact",
-  "Question"
+  "Question",
+  "Company",
+  "ModelFamily",
+  "Model",
+  "Platform",
+  "Repository",
+  "License"
 ]);
 
 export type NodeKind = z.infer<typeof NodeKindSchema>;
@@ -1252,3 +1266,109 @@ export const PostUpdateConceptContextResponseSchema = z
 export type PostUpdateConceptContextResponse = z.infer<
   typeof PostUpdateConceptContextResponseSchema
 >;
+
+// --- Doc Ingest ---
+
+export const PostDocIngestResolveRequestSchema = z
+  .object({
+    document: z.string().min(1).max(25000)
+  })
+  .strict();
+
+export type PostDocIngestResolveRequest = z.infer<typeof PostDocIngestResolveRequestSchema>;
+
+export const DocIngestResolvedDeltaSchema = z
+  .object({
+    conceptId: z.string().min(1),
+    conceptTitle: z.string(),
+    currentL0: z.string().nullable(),
+    proposedL0: z.string().nullable(),
+    currentL1: z.array(z.string()),
+    newL1: z.array(z.string()),
+    evidence: z.string(),
+    confidence: z.number().min(0).max(1)
+  })
+  .strict();
+
+export type DocIngestResolvedDelta = z.infer<typeof DocIngestResolvedDeltaSchema>;
+
+export const DocIngestResolvedNewConceptEdgeSchema = z
+  .object({
+    existingConceptId: z.string().min(1),
+    type: EdgeTypeSchema,
+    direction: z.enum(["to", "from"]),
+    confidence: z.number().min(0).max(1),
+    evidence: z.string()
+  })
+  .strict();
+
+export type DocIngestResolvedNewConceptEdge = z.infer<typeof DocIngestResolvedNewConceptEdgeSchema>;
+
+export const DocIngestResolvedNewConceptSchema = z
+  .object({
+    title: z.string().min(1),
+    l0: z.string().nullable(),
+    l1: z.array(z.string()),
+    kind: NodeKindSchema,
+    module: z.string().nullable(),
+    edges: z.array(DocIngestResolvedNewConceptEdgeSchema)
+  })
+  .strict();
+
+export type DocIngestResolvedNewConcept = z.infer<typeof DocIngestResolvedNewConceptSchema>;
+
+export const PostDocIngestResolveResponseSchema = z
+  .object({
+    deltas: z.array(DocIngestResolvedDeltaSchema),
+    newConcepts: z.array(DocIngestResolvedNewConceptSchema)
+  })
+  .strict();
+
+export type PostDocIngestResolveResponse = z.infer<typeof PostDocIngestResolveResponseSchema>;
+
+export const PostDocIngestConfirmRequestSchema = z
+  .object({
+    acceptedDeltas: z.array(
+      z
+        .object({
+          conceptId: z.string().min(1),
+          applyL0: z.boolean(),
+          acceptedNewL1: z.array(z.string())
+        })
+        .strict()
+    ),
+    acceptedNewConcepts: z.array(
+      z
+        .object({
+          title: z.string().min(1),
+          l0: z.string().nullable(),
+          l1: z.array(z.string()),
+          kind: NodeKindSchema,
+          module: z.string().nullable(),
+          edges: z.array(
+            z
+              .object({
+                existingConceptId: z.string().min(1),
+                type: EdgeTypeSchema,
+                direction: z.enum(["to", "from"])
+              })
+              .strict()
+          )
+        })
+        .strict()
+    ),
+    resolvedDeltas: z.array(DocIngestResolvedDeltaSchema)
+  })
+  .strict();
+
+export type PostDocIngestConfirmRequest = z.infer<typeof PostDocIngestConfirmRequestSchema>;
+
+export const PostDocIngestConfirmResponseSchema = z
+  .object({
+    conceptsUpdated: z.number().int().nonnegative(),
+    conceptsCreated: z.number().int().nonnegative(),
+    edgesCreated: z.number().int().nonnegative()
+  })
+  .strict();
+
+export type PostDocIngestConfirmResponse = z.infer<typeof PostDocIngestConfirmResponseSchema>;
