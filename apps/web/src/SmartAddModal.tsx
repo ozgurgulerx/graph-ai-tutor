@@ -37,13 +37,14 @@ export function SmartAddModal(props: SmartAddModalProps) {
         <label className="mutedText" htmlFor="smart-add-title">
           Describe what you learned
         </label>
-        <input
+        <textarea
           id="smart-add-title"
           className="textInput"
           value={text}
           onChange={(e) => setText(e.target.value)}
           placeholder="I learned that RAG combines retrieval with generation."
           disabled={loading}
+          rows={4}
           maxLength={10000}
           data-testid="smart-add-title"
         />
