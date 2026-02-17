@@ -2726,8 +2726,12 @@ export default function App() {
           onCreated={(conceptId) => {
             setSmartAddOpen(false);
             void (async () => {
-              await refreshGraph();
-              selectConcept(conceptId, "programmatic");
+              try {
+                await refreshGraph();
+                selectConcept(conceptId, "programmatic");
+              } catch (err) {
+                setSnackbarMessage(err instanceof Error ? err.message : "Failed to add concept");
+              }
             })();
           }}
           onClose={() => setSmartAddOpen(false)}
