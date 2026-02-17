@@ -275,7 +275,31 @@ export {
   PostUpdateConceptContextRequestSchema,
   type PostUpdateConceptContextRequest,
   PostUpdateConceptContextResponseSchema,
-  type PostUpdateConceptContextResponse
+  type PostUpdateConceptContextResponse,
+  PostDocIngestResolveRequestSchema,
+  type PostDocIngestResolveRequest,
+  DocIngestResolvedDeltaSchema,
+  type DocIngestResolvedDelta,
+  DocIngestResolvedNewConceptEdgeSchema,
+  type DocIngestResolvedNewConceptEdge,
+  DocIngestResolvedNewConceptSchema,
+  type DocIngestResolvedNewConcept,
+  PostDocIngestResolveResponseSchema,
+  type PostDocIngestResolveResponse,
+  PostDocIngestConfirmRequestSchema,
+  type PostDocIngestConfirmRequest,
+  PostDocIngestConfirmResponseSchema,
+  type PostDocIngestConfirmResponse,
+  PostSmartAddResolveRequestSchema,
+  type PostSmartAddResolveRequest,
+  SmartAddProposedEdgeSchema,
+  type SmartAddProposedEdge,
+  PostSmartAddResolveResponseSchema,
+  type PostSmartAddResolveResponse,
+  PostSmartAddConfirmRequestSchema,
+  type PostSmartAddConfirmRequest,
+  PostSmartAddConfirmResponseSchema,
+  type PostSmartAddConfirmResponse
 } from "./schemas/api-v1";
 
 export { getConcept, getGraph } from "./api/client";

@@ -92,10 +92,20 @@ import {
   ShortestPathQuerySchema,
   ShortestPathResponseSchema,
   computePageRank,
-  detectCommunities
+  detectCommunities,
+  PostDocIngestResolveRequestSchema,
+  PostDocIngestResolveResponseSchema,
+  PostDocIngestConfirmRequestSchema,
+  PostDocIngestConfirmResponseSchema,
+  PostSmartAddResolveRequestSchema,
+  PostSmartAddResolveResponseSchema,
+  PostSmartAddConfirmRequestSchema,
+  PostSmartAddConfirmResponseSchema
 } from "@graph-ai-tutor/shared";
 
 import { createOpenAiCaptureLlm, runCaptureJob, type CaptureLlm } from "./capture";
+import { createOpenAiDocIngestLlm, runDocIngestResolve, type DocIngestLlm } from "./doc-ingest";
+import { createOpenAiSmartAddLlm, runSmartAddResolve, type SmartAddLlm } from "./smart-add";
 import {
   createOpenAiTrainingLlm,
   generateTrainingQuestions,
@@ -119,6 +129,7 @@ import {
   sha256Hex
 } from "./crawler";
 import { GraphCache } from "./graph-cache";
+import { findPotentialDuplicateConcepts } from "./concept-duplicates";
 import { isVaultUrl, readVaultTextFile, resolveVaultUrlToPath, writeVaultTextFileAtomic } from "./vault";
 
 type SafeParseResult<T> =
@@ -170,6 +181,30 @@ async function resolveConceptId(repos: Repositories, id: string): Promise<string
   return canonical.id;
 }
 
+async function rejectIfDuplicateConcept(
+  reply: FastifyReply,
+  repos: Repositories,
+  data: {
+    title: string;
+    module?: string | null;
+    kind?: string;
+  }
+): Promise<boolean> {
+  const duplicates = await findPotentialDuplicateConcepts({
+    repos,
+    title: data.title,
+    module: data.module,
+    kind: data.kind
+  });
+
+  if (duplicates.length === 0) return false;
+
+  sendError(reply, 409, "CONCEPT_DUPLICATE", "A similar concept already exists", {
+    matches: duplicates
+  });
+  return true;
+}
+
 function titleFromMarkdown(content: string): string | null {
   // Prefer the first markdown heading anywhere in the document.
   // Ensure we never return multi-line titles, even if the content contains unexpected line separators.
@@ -207,6 +242,8 @@ export type ServerDeps = {
   extractionLlm?: ExtractionLlm;
   captureLlm?: CaptureLlm;
   trainingLlm?: TrainingLlm;
+  docIngestLlm?: DocIngestLlm;
+  smartAddLlm?: SmartAddLlm;
 };
 
 function registerApiRoutes(
@@ -1441,6 +1478,13 @@ function registerApiRoutes(
       return validated;
     }
 
+    const isDuplicate = await rejectIfDuplicateConcept(reply, deps.repos, {
+      title: body.title,
+      kind: body.kind,
+      module: body.module ?? null
+    });
+    if (isDuplicate) return;
+
     const created = await deps.repos.concept.create(body);
     graphCache.invalidate();
     const validated = parseOr400(reply, PostConceptResponseSchema, { concept: created });
@@ -2602,6 +2646,235 @@ function registerApiRoutes(
         500,
         "COMPLETE_FAILED",
         err instanceof Error ? err.message : "Failed to complete session"
+      );
+      app.log.error(err);
+      return;
+    }
+  });
+
+  // --- Smart Add routes ---
+
+  app.post("/smart-add/resolve", async (req, reply) => {
+    const body = parseOr400(reply, PostSmartAddResolveRequestSchema, req.body);
+    if (!body) return;
+
+    let llm: SmartAddLlm;
+    try {
+      llm = deps.smartAddLlm ?? createOpenAiSmartAddLlm();
+    } catch (err) {
+      sendError(
+        reply,
+        501,
+        "LLM_NOT_CONFIGURED",
+        err instanceof Error ? err.message : "Smart add LLM not configured"
+      );
+      return;
+    }
+
+    try {
+      const hasDuplicate = await rejectIfDuplicateConcept(reply, deps.repos, {
+        title: body.title
+      });
+      if (hasDuplicate) return;
+
+      const res = await runSmartAddResolve({
+        repos: deps.repos,
+        llm,
+        title: body.title
+      });
+      const validated = parseOr400(reply, PostSmartAddResolveResponseSchema, res);
+      if (!validated) return;
+      return validated;
+    } catch (err) {
+      sendError(
+        reply,
+        502,
+        "SMART_ADD_RESOLVE_FAILED",
+        err instanceof Error ? err.message : "Smart add resolve failed"
+      );
+      app.log.error(err);
+      return;
+    }
+  });
+
+  app.post("/smart-add/confirm", async (req, reply) => {
+    const body = parseOr400(reply, PostSmartAddConfirmRequestSchema, req.body);
+    if (!body) return;
+
+    try {
+      const hasDuplicate = await rejectIfDuplicateConcept(reply, deps.repos, {
+        title: body.title,
+        kind: body.kind,
+        module: body.module
+      });
+      if (hasDuplicate) return;
+
+      const created = await deps.repos.concept.create({
+        title: body.title,
+        kind: body.kind,
+        l0: body.l0,
+        l1: body.l1,
+        module: body.module
+      });
+
+      let edgesCreated = 0;
+      for (const edge of body.edges) {
+        const fromId = edge.direction === "from" ? created.id : edge.existingConceptId;
+        const toId = edge.direction === "from" ? edge.existingConceptId : created.id;
+        if (fromId === toId) continue;
+
+        await deps.repos.edge.create({
+          fromConceptId: fromId,
+          toConceptId: toId,
+          type: edge.type
+        });
+        edgesCreated++;
+      }
+
+      graphCache.invalidate();
+
+      const validated = parseOr400(reply, PostSmartAddConfirmResponseSchema, {
+        concept: created,
+        edgesCreated
+      });
+      if (!validated) return;
+      return validated;
+    } catch (err) {
+      sendError(
+        reply,
+        500,
+        "SMART_ADD_CONFIRM_FAILED",
+        err instanceof Error ? err.message : "Smart add confirm failed"
+      );
+      app.log.error(err);
+      return;
+    }
+  });
+
+  // --- Doc Ingest routes ---
+
+  app.post("/doc-ingest/resolve", async (req, reply) => {
+    const body = parseOr400(reply, PostDocIngestResolveRequestSchema, req.body);
+    if (!body) return;
+
+    let llm: DocIngestLlm;
+    try {
+      llm = deps.docIngestLlm ?? createOpenAiDocIngestLlm();
+    } catch (err) {
+      sendError(
+        reply,
+        501,
+        "LLM_NOT_CONFIGURED",
+        err instanceof Error ? err.message : "Doc ingest LLM not configured"
+      );
+      return;
+    }
+
+    try {
+      const res = await runDocIngestResolve({
+        repos: deps.repos,
+        llm,
+        document: body.document
+      });
+      const validated = parseOr400(reply, PostDocIngestResolveResponseSchema, res);
+      if (!validated) return;
+      return validated;
+    } catch (err) {
+      sendError(
+        reply,
+        502,
+        "DOC_INGEST_RESOLVE_FAILED",
+        err instanceof Error ? err.message : "Doc ingest resolve failed"
+      );
+      app.log.error(err);
+      return;
+    }
+  });
+
+  app.post("/doc-ingest/confirm", async (req, reply) => {
+    const body = parseOr400(reply, PostDocIngestConfirmRequestSchema, req.body);
+    if (!body) return;
+
+    try {
+      let conceptsUpdated = 0;
+      let conceptsCreated = 0;
+      let edgesCreated = 0;
+      for (const concept of body.acceptedNewConcepts) {
+        const hasDuplicate = await rejectIfDuplicateConcept(reply, deps.repos, {
+          title: concept.title,
+          kind: concept.kind,
+          module: concept.module
+        });
+        if (hasDuplicate) return;
+      }
+
+      // Apply accepted deltas
+      for (const delta of body.acceptedDeltas) {
+        const existing = body.resolvedDeltas.find((d) => d.conceptId === delta.conceptId);
+        if (!existing) continue;
+
+        const concept = await deps.repos.concept.getById(delta.conceptId);
+        if (!concept) continue;
+
+        const updates: { id: string; l0?: string | null; l1?: string[] } = { id: delta.conceptId };
+        let changed = false;
+
+        if (delta.applyL0 && existing.proposedL0 !== null) {
+          updates.l0 = existing.proposedL0;
+          changed = true;
+        }
+
+        if (delta.acceptedNewL1.length > 0) {
+          updates.l1 = [...concept.l1, ...delta.acceptedNewL1];
+          changed = true;
+        }
+
+        if (changed) {
+          await deps.repos.concept.update(updates);
+          conceptsUpdated++;
+        }
+      }
+
+      // Create accepted new concepts and their edges
+      for (const nc of body.acceptedNewConcepts) {
+        const created = await deps.repos.concept.create({
+          title: nc.title,
+          l0: nc.l0,
+          l1: nc.l1,
+          kind: nc.kind,
+          module: nc.module
+        });
+        conceptsCreated++;
+
+        for (const edge of nc.edges) {
+          const fromId = edge.direction === "from" ? created.id : edge.existingConceptId;
+          const toId = edge.direction === "from" ? edge.existingConceptId : created.id;
+          if (fromId === toId) continue;
+
+          await deps.repos.edge.create({
+            fromConceptId: fromId,
+            toConceptId: toId,
+            type: edge.type
+          });
+          edgesCreated++;
+        }
+      }
+
+      graphCache.invalidate();
+
+      const validated = parseOr400(reply, PostDocIngestConfirmResponseSchema, {
+        conceptsUpdated,
+        conceptsCreated,
+        edgesCreated
+      });
+      if (!validated) return;
+      return validated;
+    } catch (err) {
+      sendError(
+        reply,
+        500,
+        "DOC_INGEST_CONFIRM_FAILED",
+        err instanceof Error ? err.message : "Doc ingest confirm failed"
       );
       app.log.error(err);
       return;

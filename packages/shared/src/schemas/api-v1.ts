@@ -1372,3 +1372,68 @@ export const PostDocIngestConfirmResponseSchema = z
   .strict();
 
 export type PostDocIngestConfirmResponse = z.infer<typeof PostDocIngestConfirmResponseSchema>;
+
+// --- Smart Add ---
+
+export const PostSmartAddResolveRequestSchema = z
+  .object({
+    title: z.string().min(1).max(200)
+  })
+  .strict();
+
+export type PostSmartAddResolveRequest = z.infer<typeof PostSmartAddResolveRequestSchema>;
+
+export const SmartAddProposedEdgeSchema = z
+  .object({
+    existingConceptId: z.string().min(1),
+    existingConceptTitle: z.string(),
+    type: EdgeTypeSchema,
+    direction: z.enum(["to", "from"]),
+    confidence: z.number().min(0).max(1),
+    evidence: z.string()
+  })
+  .strict();
+
+export type SmartAddProposedEdge = z.infer<typeof SmartAddProposedEdgeSchema>;
+
+export const PostSmartAddResolveResponseSchema = z
+  .object({
+    kind: NodeKindSchema,
+    l0: z.string().nullable(),
+    l1: z.array(z.string()),
+    module: z.string().nullable(),
+    edges: z.array(SmartAddProposedEdgeSchema)
+  })
+  .strict();
+
+export type PostSmartAddResolveResponse = z.infer<typeof PostSmartAddResolveResponseSchema>;
+
+export const PostSmartAddConfirmRequestSchema = z
+  .object({
+    title: z.string().min(1),
+    kind: NodeKindSchema,
+    l0: z.string().nullable(),
+    l1: z.array(z.string()),
+    module: z.string().nullable(),
+    edges: z.array(
+      z
+        .object({
+          existingConceptId: z.string().min(1),
+          type: EdgeTypeSchema,
+          direction: z.enum(["to", "from"])
+        })
+        .strict()
+    )
+  })
+  .strict();
+
+export type PostSmartAddConfirmRequest = z.infer<typeof PostSmartAddConfirmRequestSchema>;
+
+export const PostSmartAddConfirmResponseSchema = z
+  .object({
+    concept: ConceptSchema,
+    edgesCreated: z.number().int().nonnegative()
+  })
+  .strict();
+
+export type PostSmartAddConfirmResponse = z.infer<typeof PostSmartAddConfirmResponseSchema>;

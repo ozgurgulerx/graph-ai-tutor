@@ -1,5 +1,6 @@
 import type { Repositories } from "@graph-ai-tutor/db";
 import type { ParsedMdFile } from "./parser";
+import { findPotentialDuplicateConcepts } from "../concept-duplicates";
 
 export type IndexFileResult = {
   conceptId: string;
@@ -23,6 +24,16 @@ export async function indexFile(
     );
     if (exactMatch) {
       concept = await repos.concept.getById(exactMatch.id);
+    } else {
+      const duplicates = await findPotentialDuplicateConcepts({
+        repos,
+        title,
+        kind: fm.kind,
+        module: fm.module
+      });
+      if (duplicates.length > 0) {
+        concept = await repos.concept.getById(duplicates[0].id);
+      }
     }
   }
 
