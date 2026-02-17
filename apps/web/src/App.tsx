@@ -2723,11 +2723,12 @@ export default function App() {
 
       {smartAddOpen ? (
         <SmartAddModal
-          onCaptured={() => {
+          onCreated={(conceptId) => {
             setSmartAddOpen(false);
-            openWorkbench("inbox");
-            void refreshWorkbenchCounts();
-            void refreshGraph();
+            void (async () => {
+              await refreshGraph();
+              selectConcept(conceptId, "programmatic");
+            })();
           }}
           onClose={() => setSmartAddOpen(false)}
         />
